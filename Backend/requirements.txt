@@ -1,0 +1,45 @@
+# FastAPI Core
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+bcrypt==4.1.2
+
+# AI/ML Libraries
+google-generativeai>=0.4.0
+pdfplumber==0.10.3
+python-docx==1.1.0
+spacy==3.7.2
+sentence-transformers==2.3.1
+numpy==1.26.3
+scikit-learn==1.4.0
+
+# Utilities
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+python-dateutil==2.8.2
+
+# CORS
+fastapi-cors==0.0.6
+
+# Background Tasks & Async
+celery==5.3.6
+redis==5.0.1
+
+# Development
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
+black==24.1.1
+flake8==7.0.0
