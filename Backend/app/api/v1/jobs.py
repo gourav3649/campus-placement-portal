@@ -1,353 +1,233 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List, Optional
+from typing import List, Any, Optional
+
 from app.database import get_db
-from app.api.deps import get_current_user, get_current_recruiter
-from app.core.rbac import Role, Permission, require_permission
-from app.core.config import get_settings
-from app.models.job import Job, JobStatus
+from app.models.job import Job, DriveStatus
+from app.models.application import Application, ApplicationStatus
 from app.models.recruiter import Recruiter
-from app.schemas.job import JobCreate, JobUpdate, Job as JobSchema, JobList
+from app.schemas.job import JobCreate, JobUpdate, JobResponse, JobWithStats
+from app.api.deps import get_current_recruiter, get_current_placement_officer, get_current_student
+from app.services.notification_service import create_notification
+from app.models.notification import NotificationType
 
-router = APIRouter(prefix="/jobs", tags=["Jobs"])
+router = APIRouter()
 
 
-@router.post("", response_model=JobSchema, status_code=status.HTTP_201_CREATED)
+# ── Recruiter endpoints ────────────────────────────────────────────────────────
+
+@router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def create_job(
-    job_data: JobCreate,
-    current_recruiter: Recruiter = Depends(get_current_recruiter),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Create a new job posting.
-    
-    Requires: RECRUITER role with POST_JOBS permission
-    SINGLE-COLLEGE MODE: college_id auto-injected from settings, job created as DRAFT
-    """
-    require_permission(Permission.POST_JOBS)(current_recruiter.user.role)
-    
-    settings = get_settings()
-    
-    # SINGLE-COLLEGE MODE: Auto-inject college_id from settings
-    college_id = settings.COLLEGE_ID
-    
-    # Validate college exists
-    from app.models.college import College
-    college_result = await db.execute(
-        select(College).filter(College.id == college_id, College.is_active == True)
+    job_in: JobCreate,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+) -> Any:
+    """Recruiter posts a new drive. Starts as DRAFT."""
+    if not recruiter.is_verified:
+        raise HTTPException(status_code=403, detail="Your recruiter account is not yet verified by the placement office.")
+
+    db_job = Job(
+        **job_in.model_dump(),
+        recruiter_id=recruiter.id,
+        status=DriveStatus.DRAFT,
     )
-    college = college_result.scalar_one_or_none()
-    if not college:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="College not found or inactive. Please check COLLEGE_ID in settings."
-        )
+    db.add(db_job)
+    await db.commit()
+    await db.refresh(db_job)
+    return db_job
+
+
+@router.get("/my-jobs", response_model=List[JobWithStats])
+async def list_my_jobs(
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+) -> Any:
+    result = await db.execute(select(Job).filter(Job.recruiter_id == recruiter.id))
+    jobs = result.scalars().all()
     
-    # Create job with auto-injected college_id
-    job_dict = job_data.model_dump()
-    job_dict['college_id'] = college_id  # SINGLE-COLLEGE MODE: Auto-injected
-    
-    job = Job(
-        recruiter_id=current_recruiter.id,
-        **job_dict
-    )
-    
-    # MULTI-TENANT: Set default drive_status to DRAFT (requires placement officer approval)
-    if hasattr(job, 'drive_status'):
-        from app.models.job import DriveStatus
-        if not job.drive_status:
-            job.drive_status = DriveStatus.DRAFT
-    
-    db.add(job)
+    jobs_with_stats = []
+    for job in jobs:
+        total = await db.scalar(select(func.count(Application.id)).filter(Application.job_id == job.id))
+        
+        eligible = await db.scalar(select(func.count(Application.id)).filter(
+            Application.job_id == job.id, Application.is_eligible == True
+        ))
+        
+        selected = await db.scalar(select(func.count(Application.id)).filter(
+            Application.job_id == job.id, Application.status == ApplicationStatus.ACCEPTED
+        ))
+        
+        jws = JobWithStats.model_validate(job)
+        jws.total_applied = total or 0
+        jws.eligible_count = eligible or 0
+        jws.selected_count = selected or 0
+        jobs_with_stats.append(jws)
+
+    return jobs_with_stats
+
+
+@router.put("/{job_id}", response_model=JobResponse)
+async def update_job(
+    job_id: int,
+    job_in: JobUpdate,
+    db: AsyncSession = Depends(get_db),
+    recruiter: Recruiter = Depends(get_current_recruiter),
+) -> Any:
+    result = await db.execute(select(Job).filter(Job.id == job_id, Job.recruiter_id == recruiter.id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != DriveStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Only DRAFT jobs can be edited")
+
+    for field, value in job_in.model_dump(exclude_unset=True).items():
+        setattr(job, field, value)
     await db.commit()
     await db.refresh(job)
-    
     return job
 
 
-@router.get("", response_model=JobList)
-async def list_jobs(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    job_type: Optional[str] = None,
-    location: Optional[str] = None,
-    is_remote: Optional[bool] = None,
+# ── Placement Officer endpoints ────────────────────────────────────────────────
+
+@router.get("/pending-approval", response_model=List[JobWithStats])
+async def list_pending_jobs(
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-    """
-    List all open job postings with pagination and filters.
-    
-    MULTI-TENANT: Students only see jobs from their college with APPROVED status.
-    Recruiters see all jobs.
-    """
-    # Build query
-    query = select(Job).filter(Job.status == JobStatus.OPEN)
-    
-    # MULTI-TENANT FILTERING FOR STUDENTS
-    if current_user.role == Role.STUDENT:
-        from app.models.student import Student
-        student_result = await db.execute(
-            select(Student).filter(Student.user_id == current_user.id)
-        )
-        student = student_result.scalar_one_or_none()
-        
-        if student:
-            # Only show jobs from student's college
-            query = query.filter(Job.college_id == student.college_id)
-            
-            # Only show APPROVED drives
-            from app.models.job import DriveStatus
-            query = query.filter(Job.drive_status == DriveStatus.APPROVED)
-    
-    # Apply filters
-    if job_type:
-        query = query.filter(Job.job_type == job_type)
-    if location:
-        query = query.filter(Job.location.ilike(f"%{location}%"))
-    if is_remote is not None:
-        query = query.filter(Job.is_remote == is_remote)
-    
-    # Get total count
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar()
-    
-    # Get paginated results
-    query = query.offset(skip).limit(limit).order_by(Job.created_at.desc())
-    result = await db.execute(query)
-    jobs = result.scalars().all()
-    
-    return JobList(
-        total=total,
-        page=skip // limit + 1,
-        page_size=limit,
-        jobs=jobs
+    officer: Any = Depends(get_current_placement_officer),
+) -> Any:
+    result = await db.execute(
+        select(Job).filter(Job.college_id == officer.college_id, Job.status == DriveStatus.DRAFT)
     )
+    return result.scalars().all()
 
 
-@router.get("/{job_id}", response_model=JobSchema)
+@router.get("/all", response_model=List[JobWithStats])
+async def list_all_college_jobs(
+    db: AsyncSession = Depends(get_db),
+    officer: Any = Depends(get_current_placement_officer),
+) -> Any:
+    """All jobs for this college (any status). Officer view with stats."""
+    result = await db.execute(select(Job).filter(Job.college_id == officer.college_id))
+    jobs = result.scalars().all()
+
+    jobs_with_stats = []
+    for job in jobs:
+        total = await db.scalar(select(func.count(Application.id)).filter(Application.job_id == job.id))
+        eligible = await db.scalar(select(func.count(Application.id)).filter(
+            Application.job_id == job.id, Application.is_eligible == True
+        ))
+        selected = await db.scalar(select(func.count(Application.id)).filter(
+            Application.job_id == job.id, Application.status == ApplicationStatus.ACCEPTED
+        ))
+        jws = JobWithStats.model_validate(job)
+        jws.total_applied = total or 0
+        jws.eligible_count = eligible or 0
+        jws.selected_count = selected or 0
+        jobs_with_stats.append(jws)
+
+    return jobs_with_stats
+
+
+@router.post("/{job_id}/approve", response_model=JobResponse)
+async def approve_job(
+    job_id: int,
+    db: AsyncSession = Depends(get_db),
+    officer: Any = Depends(get_current_placement_officer),
+) -> Any:
+    result = await db.execute(select(Job).filter(Job.id == job_id, Job.college_id == officer.college_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != DriveStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Only DRAFT jobs can be approved")
+
+    # Check recruiter is verified
+    recruiter_result = await db.execute(select(Recruiter).filter(Recruiter.id == job.recruiter_id))
+    recruiter = recruiter_result.scalar_one_or_none()
+    if not recruiter or not recruiter.is_verified:
+        raise HTTPException(status_code=403, detail="Recruiter is not verified. Verify the recruiter before approving drives.")
+
+    job.status = DriveStatus.APPROVED
+    await db.flush()
+
+    # Notify all students in this college
+    from app.models.student import Student
+    from app.models.user import User
+    students_result = await db.execute(
+        select(Student).filter(Student.college_id == officer.college_id)
+    )
+    students = students_result.scalars().all()
+    for student in students:
+        await create_notification(
+            db,
+            user_id=student.user_id,
+            title=f"New Drive: {job.title}",
+            message=f"{recruiter.company_name} is hiring! Apply before {job.deadline.strftime('%d %b %Y') if job.deadline else 'the deadline'}.",
+            notification_type=NotificationType.DRIVE_OPENED,
+            related_job_id=job.id,
+        )
+
+    await db.commit()
+    await db.refresh(job)
+    return job
+
+
+@router.post("/{job_id}/reject", response_model=JobResponse)
+async def reject_job(
+    job_id: int,
+    db: AsyncSession = Depends(get_db),
+    officer: Any = Depends(get_current_placement_officer),
+) -> Any:
+    result = await db.execute(select(Job).filter(Job.id == job_id, Job.college_id == officer.college_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.status = DriveStatus.REJECTED
+    await db.commit()
+    await db.refresh(job)
+    return job
+
+
+@router.post("/{job_id}/close", response_model=JobResponse)
+async def close_job(
+    job_id: int,
+    db: AsyncSession = Depends(get_db),
+    officer: Any = Depends(get_current_placement_officer),
+) -> Any:
+    result = await db.execute(select(Job).filter(Job.id == job_id, Job.college_id == officer.college_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.status = DriveStatus.CLOSED
+    await db.commit()
+    await db.refresh(job)
+    return job
+
+
+# ── Student / Public endpoints ─────────────────────────────────────────────────
+
+@router.get("/", response_model=List[JobResponse])
+async def list_approved_jobs(
+    db: AsyncSession = Depends(get_db),
+    student: Any = Depends(get_current_student),
+) -> Any:
+    """Students see only APPROVED jobs from their college."""
+    result = await db.execute(
+        select(Job).filter(Job.college_id == student.college_id, Job.status == DriveStatus.APPROVED)
+    )
+    return result.scalars().all()
+
+
+@router.get("/{job_id}", response_model=JobResponse)
 async def get_job(
     job_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-    """
-    Get details of a specific job.
-    
-    Accessible to all authenticated users.
-    """
-    result = await db.execute(select(Job).filter(Job.id == job_id))
+    student: Any = Depends(get_current_student),
+) -> Any:
+    result = await db.execute(
+        select(Job).filter(Job.id == job_id, Job.college_id == student.college_id)
+    )
     job = result.scalar_one_or_none()
-    
     if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
-
-
-@router.put("/{job_id}", response_model=JobSchema)
-async def update_job(
-    job_id: int,
-    job_update: JobUpdate,
-    current_recruiter: Recruiter = Depends(get_current_recruiter),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Update a job posting.
-    
-    Requires: RECRUITER role, must own the job
-    """
-    result = await db.execute(select(Job).filter(Job.id == job_id))
-    job = result.scalar_one_or_none()
-    
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Check ownership
-    if job.recruiter_id != current_recruiter.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this job"
-        )
-    
-    # Check if eligibility rules are being updated
-    eligibility_fields = {'min_cgpa', 'allowed_branches', 'max_backlogs', 'exclude_placed_students'}
-    update_data = job_update.model_dump(exclude_unset=True)
-    eligibility_changed = bool(eligibility_fields & set(update_data.keys()))
-    
-    # Update fields
-    for field, value in update_data.items():
-        setattr(job, field, value)
-    
-    await db.commit()
-    await db.refresh(job)
-    
-    # TRIGGER ELIGIBILITY REVALIDATION if eligibility rules changed
-    if eligibility_changed:
-        from app.eligibility import EligibilityService
-        eligibility_service = EligibilityService()
-        
-        print(f"[Jobs] Eligibility rules updated for job {job_id}, triggering revalidation...")
-        revalidation_stats = await eligibility_service.revalidate_all_applications(db, job_id)
-        print(f"[Jobs] Revalidation complete: {revalidation_stats['newly_ineligible']} became ineligible, "
-              f"{revalidation_stats['newly_eligible']} became eligible")
-    
-    return job
-
-
-@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_job(
-    job_id: int,
-    current_recruiter: Recruiter = Depends(get_current_recruiter),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Delete a job posting.
-    
-    Requires: RECRUITER role, must own the job
-    """
-    result = await db.execute(select(Job).filter(Job.id == job_id))
-    job = result.scalar_one_or_none()
-    
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Check ownership
-    if job.recruiter_id != current_recruiter.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this job"
-        )
-    
-    await db.delete(job)
-    await db.commit()
-    
-    return None
-
-
-@router.post("/{job_id}/close", response_model=JobSchema)
-async def close_job(
-    job_id: int,
-    current_recruiter: Recruiter = Depends(get_current_recruiter),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Close a job posting (stop accepting applications).
-    
-    Requires: RECRUITER role, must own the job
-    """
-    result = await db.execute(select(Job).filter(Job.id == job_id))
-    job = result.scalar_one_or_none()
-    
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Check ownership
-    if job.recruiter_id != current_recruiter.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to close this job"
-        )
-    
-    job.status = JobStatus.CLOSED
-    await db.commit()
-    await db.refresh(job)
-    
-    return job
-
-
-@router.post("/{job_id}/revalidate-eligibility")
-async def revalidate_job_eligibility(
-    job_id: int,
-    current_user = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Revalidate eligibility for all applications to this job.
-    
-    Triggers a complete recheck of all applications, catching:
-    - Students who got placed (if job excludes placed students)
-    - Students whose CGPA/backlogs changed
-    - Applications that became eligible after rule changes
-    
-    Accessible to:
-    - Recruiters (who own the job)
-    - Placement Officers (for their college's jobs)
-    - Admins
-    
-    Returns:
-        Revalidation statistics showing eligibility changes
-    """
-    from app.eligibility import EligibilityService
-    from app.core.rbac import Role
-    
-    # Fetch job
-    result = await db.execute(select(Job).filter(Job.id == job_id))
-    job = result.scalar_one_or_none()
-    
-    if not job:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Job not found"
-        )
-    
-    # Authorization check
-    if current_user.role == Role.RECRUITER:
-        from app.models.recruiter import Recruiter
-        recruiter_result = await db.execute(
-            select(Recruiter).filter(Recruiter.user_id == current_user.id)
-        )
-        recruiter = recruiter_result.scalar_one_or_none()
-        
-        if not recruiter or job.recruiter_id != recruiter.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to revalidate this job's applications"
-            )
-    
-    elif current_user.role == Role.PLACEMENT_OFFICER:
-        from app.models.placement_officer import PlacementOfficer
-        officer_result = await db.execute(
-            select(PlacementOfficer).filter(PlacementOfficer.user_id == current_user.id)
-        )
-        officer = officer_result.scalar_one_or_none()
-        
-        # Multi-tenant check: officer can only revalidate jobs for their college
-        if not officer or (hasattr(job, 'college_id') and job.college_id != officer.college_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to revalidate this job's applications"
-            )
-    
-    elif current_user.role != Role.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to revalidate eligibility"
-        )
-    
-    # Trigger revalidation
-    eligibility_service = EligibilityService()
-    stats = await eligibility_service.revalidate_all_applications(db, job_id)
-    
-    return {
-        "job_id": job_id,
-        "job_title": job.title,
-        "revalidation_stats": stats,
-        "message": f"Revalidated {stats['total_applications']} applications. "
-                   f"{stats['newly_ineligible']} became ineligible, "
-                   f"{stats['newly_eligible']} became eligible."
-    }

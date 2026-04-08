@@ -1,0 +1,133 @@
+﻿.\venv\Scripts\pytho
+n : (trapped) error 
+reading bcrypt 
+version
+At line:1 char:55
++ ... 1\Backend"; .\
+venv\Scripts\python 
+test_e2e_live.py > 
+test_logs.txt 2> ...
++                 ~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: ((tra   
+ pped) error rea    
+ding bcrypt ver    
+sion:String) []    
+, RemoteExcepti    
+on
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\passlib\
+handlers\bcrypt.py",
+ line 620, in 
+_load_backend_mixin
+    version = _bcryp
+t.__about__.__versio
+n__
+AttributeError: 
+module 'bcrypt' has 
+no attribute 
+'__about__'
+Seeding baseline Admin & Officer in DB...
+2026-03-25 23:12:56,516 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-03-25 23:12:56,516 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:12:56,517 INFO sqlalchemy.engine.Engine select current_schema()
+2026-03-25 23:12:56,517 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:12:56,519 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-03-25 23:12:56,519 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:12:56,519 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:12:56,523 INFO sqlalchemy.engine.Engine INSERT INTO users (email, hashed_password, role, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::role, $4::BOOLEAN) RETURNING users.id, users.created_at, users.updated_at
+2026-03-25 23:12:56,523 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ('adminbbbe52@test.com', '$2b$12$4CJeoqJksL4zjW7cJZypl.dCgA9UICEZZ6q3mQs9o1hBBY6HMgeze', 'ADMIN', True)
+2026-03-25 23:12:56,542 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:12:56,545 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:12:56,548 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-25 23:12:56,548 INFO sqlalchemy.engine.Engine [generated in 0.00037s] (26,)
+2026-03-25 23:12:56,553 INFO sqlalchemy.engine.Engine INSERT INTO colleges (name, location, website, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::BOOLEAN) RETURNING colleges.id
+2026-03-25 23:12:56,553 INFO sqlalchemy.engine.Engine [generated in 0.00032s] ('Test College bbbe52', 'Campus', 'example.com', True)
+2026-03-25 23:12:56,558 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:12:56,560 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:12:56,562 INFO sqlalchemy.engine.Engine SELECT colleges.id, colleges.name, colleges.location, colleges.website, colleges.is_active 
+FROM colleges 
+WHERE colleges.id = $1::INTEGER
+2026-03-25 23:12:56,562 INFO sqlalchemy.engine.Engine [generated in 0.00024s] (8,)
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine INSERT INTO users (email, hashed_password, role, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::role, $4::BOOLEAN) RETURNING users.id, users.created_at, users.updated_at
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine [cached since 0.293s ago] ('officerbbbe52@test.com', '$2b$12$BWeJ3fpdsOTL4aMruLfi/eKSyn.yHJPxBXCNBpnknzqrvlGe7bSkC', 'PLACEMENT_OFFICER', True)
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-25 23:12:56,816 INFO sqlalchemy.engine.Engine [cached since 0.27s ago] (27,)
+2026-03-25 23:12:56,819 INFO sqlalchemy.engine.Engine INSERT INTO placement_officers (user_id, college_id, name, email, designation, department) VALUES ($1::INTEGER, $2::INTEGER, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR) RETURNING placement_officers.id
+2026-03-25 23:12:56,820 INFO sqlalchemy.engine.Engine [generated in 0.00020s] (27, 8, 'Head Officer', 'officerbbbe52@test.com', None, 'Placement')
+2026-03-25 23:12:56,823 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     Started 
+server process 
+[55344]
+INFO:     Waiting 
+for application 
+startup.
+INFO:     
+Application startup 
+complete.
+INFO:     Uvicorn 
+running on http://12
+7.0.0.1:8000 (Press 
+CTRL+C to quit)
+INFO:     127.0.0.1:54796 - "GET /docs HTTP/1.1" 200 OK
+2026-03-25 23:13:01,019 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-03-25 23:13:01,020 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:13:01,022 INFO sqlalchemy.engine.Engine select current_schema()
+2026-03-25 23:13:01,022 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:13:01,024 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-03-25 23:13:01,024 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:13:01,025 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:13:01,054 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.email = $1::VARCHAR
+2026-03-25 23:13:01,054 INFO sqlalchemy.engine.Engine [generated in 0.00031s] ('officerbbbe52@test.com',)
+(trapped) error 
+reading bcrypt 
+version
+Traceback (most 
+recent call last):
+  File "C:\Users\HP\
+AppData\Local\Packag
+es\PythonSoftwareFou
+ndation.Python.3.10_
+qbz5n2kfra8p0\LocalC
+ache\local-packages\
+Python310\site-packa
+ges\passlib\handlers
+\bcrypt.py", line 
+620, in 
+_load_backend_mixin
+    version = _bcryp
+t.__about__.__versio
+n__
+AttributeError: 
+module 'bcrypt' has 
+no attribute 
+'__about__'
+2026-03-25 23:13:01,337 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:54798 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54798 - "POST /api/v1/auth/register/recruiter HTTP/1.1" 422 Unprocessable Entity
+Starting uvicorn server in background...
+Server is up!
+
+[Phase 1: Setup Recruiter]
+[FAIL] ASSERTION FAILED: Recruiter registered (Expected 201, got 422)
+Shutting down test server...

@@ -1,87 +1,62 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from pydantic import BaseModel
+from typing import Optional, List
 from datetime import datetime
 from app.models.application import ApplicationStatus
 
 
-# Base schemas
-class ApplicationBase(BaseModel):
-    """Base application schema."""
+class ApplicationCreate(BaseModel):
     job_id: int
     resume_id: Optional[int] = None
     cover_letter: Optional[str] = None
 
 
-class ApplicationCreate(ApplicationBase):
-    """Schema for creating an application."""
-    pass
+class ApplicationUpdateStatus(BaseModel):
+    status: ApplicationStatus
 
 
-class ApplicationUpdate(BaseModel):
-    """Schema for updating an application."""
-    status: Optional[ApplicationStatus] = None
-    cover_letter: Optional[str] = None
+class StudentSummary(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    branch: str
+    cgpa: float
 
+    class Config:
+        from_attributes = True
 
-class ApplicationInDB(ApplicationBase):
-    """Schema for application in database."""
+class RoundSummary(BaseModel):
+    id: int
+    round_number: int
+    round_name: str
+    result: str
+
+    class Config:
+        from_attributes = True
+
+class JobSummary(BaseModel):
+    id: int
+    title: str
+    company_name: str
+
+    class Config:
+        from_attributes = True
+
+class ApplicationResponse(BaseModel):
     id: int
     student_id: int
+    job_id: int
+    resume_id: Optional[int]
+    cover_letter: Optional[str]
     status: ApplicationStatus
-    match_score: Optional[float]
-    skills_match_score: Optional[float]
-    experience_match_score: Optional[float]
-    rank: Optional[int]
-    ai_summary: Optional[str]
-    strengths: Optional[str]
-    weaknesses: Optional[str]
+    is_eligible: bool
+    eligibility_reasons: Optional[List[str]]
+    ai_score: Optional[float]
+    ai_rank: Optional[int]
     applied_at: datetime
     updated_at: datetime
-    
+    student: Optional[StudentSummary] = None
+    job: Optional[JobSummary] = None
+    rounds: List[RoundSummary] = []
+
     class Config:
         from_attributes = True
-
-
-class Application(ApplicationInDB):
-    """Public application schema."""
-    pass
-
-
-class ApplicationWithDetails(Application):
-    """Application with job and student details."""
-    job_title: str
-    company_name: str
-    student_name: str
-    student_email: str
-    
-    class Config:
-        from_attributes = True
-
-
-class ApplicationRanking(BaseModel):
-    """Schema for AI-ranked application."""
-    application_id: int
-    student_id: int
-    student_name: str
-    match_score: float
-    skills_match_score: float
-    experience_match_score: float
-    rank: int
-    ai_summary: str
-    strengths: List[str]
-    weaknesses: List[str]
-    resume_url: Optional[str]
-
-
-class ApplicationList(BaseModel):
-    """Schema for paginated application list."""
-    total: int
-    page: int
-    page_size: int
-    applications: List[Application]
-
-
-class RankingRequest(BaseModel):
-    """Request schema for triggering AI ranking."""
-    job_id: int
-    rerank: bool = Field(default=False, description="Force re-ranking of all applications")

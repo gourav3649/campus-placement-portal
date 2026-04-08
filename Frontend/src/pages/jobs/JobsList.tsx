@@ -1,167 +1,113 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { jobsApi, applicationsApi } from '@/services/api'
-import { Briefcase, MapPin, DollarSign, Search, Filter, Clock, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { api } from '../../services/api';
+import { Job, Application } from '../../types';
+import { Link } from 'react-router-dom';
+import { Briefcase, MapPin, Calendar, Clock, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function JobsList() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [locationFilter, setLocationFilter] = useState('')
-  const [applyingJobId, setApplyingJobId] = useState<number | null>(null)
-  const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set())
-  const [successMsg, setSuccessMsg] = useState('')
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [myApps, setMyApps] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: jobs = [], isLoading } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: async () => {
-      const res = await jobsApi.getAll({ is_active: true })
-      return res.data
-    },
-  })
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [jobsRes, appsRes] = await Promise.all([
+          api.get('/jobs/'), // approved jobs for my college
+          api.get('/applications/me') // my applications
+        ]);
+        setJobs(jobsRes.data);
+        setMyApps(appsRes.data);
+      } catch (err) {
+        console.error("Failed to fetch jobs");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const applyMutation = useMutation({
-    mutationFn: (jobId: number) =>
-      applicationsApi.create({ job_id: jobId }),
-    onSuccess: (_, jobId) => {
-      setAppliedJobs(prev => new Set([...prev, jobId]))
-      setApplyingJobId(null)
-      setSuccessMsg('Application submitted successfully!')
-      queryClient.invalidateQueries({ queryKey: ['my-applications'] })
-      setTimeout(() => setSuccessMsg(''), 3000)
-    },
-    onError: () => setApplyingJobId(null),
-  })
+  if (isLoading) return <div className="p-8">Loading drives...</div>;
 
-  const filtered = jobs.filter((job: any) => {
-    const matchSearch = !search ||
-      job.title?.toLowerCase().includes(search.toLowerCase()) ||
-      job.company_name?.toLowerCase().includes(search.toLowerCase())
-    const matchLocation = !locationFilter ||
-      job.location?.toLowerCase().includes(locationFilter.toLowerCase())
-    return matchSearch && matchLocation
-  })
-
-  const handleApply = (e: React.MouseEvent, jobId: number) => {
-    e.stopPropagation()
-    setApplyingJobId(jobId)
-    applyMutation.mutate(jobId)
-  }
+  const getAppForJob = (jobId: number) => myApps.find(a => a.job_id === jobId);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Available Jobs</h1>
-        <span className="text-sm text-gray-500">{filtered.length} openings</span>
+    <div className="space-y-6">
+      <div className="page-header">
+        <h1 className="page-title">Campus Drives</h1>
+        <p className="text-sm text-gray-500 mt-1">Browse and apply to companies hiring from your college.</p>
       </div>
 
-      {successMsg && (
-        <div className="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
-          <CheckCircle className="w-4 h-4" />
-          {successMsg}
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {jobs.length === 0 ? (
+          <div className="col-span-full p-12 text-center bg-gray-50 rounded-2xl border border-gray-200">
+            <Briefcase className="mx-auto text-gray-400 mb-3" size={32} />
+            <h3 className="text-lg font-medium text-gray-900">No active drives</h3>
+            <p className="text-gray-500 mt-1">Check back later for new opportunities.</p>
+          </div>
+        ) : (
+          jobs.map(job => {
+            const app = getAppForJob(job.id);
+            const isApplied = !!app;
 
-      {/* Search & Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by job title or company..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div className="relative sm:w-52">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Filter by location..."
-            value={locationFilter}
-            onChange={e => setLocationFilter(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Job Cards */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-              <div className="h-5 bg-gray-200 rounded w-1/3 mb-3" />
-              <div className="h-4 bg-gray-100 rounded w-1/4 mb-4" />
-              <div className="h-3 bg-gray-100 rounded w-full" />
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No jobs found</p>
-          <p className="text-gray-400 text-sm mt-1">Try adjusting your search or filters</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((job: any) => (
-            <div
-              key={job.id}
-              onClick={() => navigate(`/jobs/${job.id}`)}
-              className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow cursor-pointer border border-transparent hover:border-blue-200"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-semibold text-gray-900 truncate">{job.title}</h2>
-                  <p className="text-blue-600 font-medium text-sm mt-0.5">{job.company_name}</p>
-
-                  <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
-                    {job.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" /> {job.location}
-                      </span>
-                    )}
-                    {(job.salary_min || job.salary_max) && (
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5" />
-                        ₹{job.salary_min}–{job.salary_max} LPA
-                      </span>
-                    )}
-                    {job.job_type && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> {job.job_type}
-                      </span>
-                    )}
+            return (
+              <div key={job.id} className={`card p-6 flex flex-col hover:border-blue-300 transition-colors ${isApplied ? 'bg-gray-50/50' : 'bg-white'}`}>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">{job.title}</h3>
+                    <p className="font-medium text-gray-600 mt-1 flex items-center gap-1.5"><Briefcase size={14}/> {job.company_name}</p>
                   </div>
+                  {isApplied && (
+                    <span className="flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap">
+                      <CheckCircle size={12}/> Applied
+                    </span>
+                  )}
+                </div>
 
-                  {job.required_skills && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {job.required_skills.split(',').slice(0, 5).map((skill: string) => (
-                        <span key={skill} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
-                          {skill.trim()}
-                        </span>
-                      ))}
+                <div className="space-y-2 mt-2 flex-1">
+                  {job.location && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <MapPin size={16} className="mt-0.5 text-gray-400 shrink-0"/>
+                      <span>{job.location}</span>
+                    </div>
+                  )}
+                  {job.salary_package && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600 font-medium">
+                      <span className="w-4 flex justify-center text-gray-400">₹</span>
+                      <span>{job.salary_package}</span>
+                    </div>
+                  )}
+                  {job.drive_date && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600">
+                      <Calendar size={16} className="mt-0.5 text-gray-400 shrink-0"/>
+                      <span>Drive: {format(new Date(job.drive_date), 'MMM d, yyyy')}</span>
+                    </div>
+                  )}
+                  {job.deadline && (
+                    <div className="flex items-start gap-2 text-sm text-red-600">
+                      <Clock size={16} className="mt-0.5 shrink-0"/>
+                      <span>Ends: {format(new Date(job.deadline), 'MMM d, h:mm a')}</span>
                     </div>
                   )}
                 </div>
 
-                <button
-                  onClick={e => handleApply(e, job.id)}
-                  disabled={appliedJobs.has(job.id) || applyingJobId === job.id}
-                  className={`shrink-0 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${appliedJobs.has(job.id)
-                      ? 'bg-green-100 text-green-700 cursor-default'
-                      : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60'
-                    }`}
-                >
-                  {applyingJobId === job.id ? 'Applying...' : appliedJobs.has(job.id) ? '✓ Applied' : 'Apply'}
-                </button>
+                <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex gap-2">
+                    {job.min_cgpa && <span className="badge bg-gray-100 text-gray-600 text-xs">{job.min_cgpa}+ CGPA</span>}
+                  </div>
+                  <Link 
+                    to={isApplied ? `/applications/${app.id}` : `/jobs/${job.id}`} 
+                    className={`btn text-sm py-1.5 px-4 ${isApplied ? 'btn-secondary text-gray-700' : 'btn-primary'}`}
+                  >
+                    {isApplied ? 'View Status' : 'View Details'}
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            );
+          })
+        )}
+      </div>
     </div>
-  )
+  );
 }

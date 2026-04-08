@@ -1,125 +1,69 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from app.models.job import JobType, JobStatus, DriveStatus
+from app.models.job import DriveStatus, JobType
 
 
-# Base schemas
 class JobBase(BaseModel):
-    """
-    Base job schema.
-    
-    Single-college mode:
-    - college_id: Auto-injected from settings (not user-provided)
-    - drive_status: Approval workflow (draft → approved → closed)
-    - Eligibility criteria: min_cgpa, allowed_branches, max_backlogs
-    """
-    # Basic fields
-    title: str = Field(..., min_length=1, max_length=255)
-    description: str = Field(..., min_length=1)
+    title: str
+    description: str
     requirements: Optional[str] = None
     responsibilities: Optional[str] = None
-    job_type: JobType
-    
-    # Approval workflow
-    drive_status: DriveStatus = Field(DriveStatus.DRAFT, description="Approval workflow status")
-    
-    # Location and work mode
-    location: Optional[str] = Field(None, max_length=255)
+    required_skills: Optional[str] = None
+    job_type: JobType = JobType.FULL_TIME
+    location: Optional[str] = None
     is_remote: bool = False
-    
-    # Compensation
-    salary_min: Optional[float] = Field(None, ge=0)
-    salary_max: Optional[float] = Field(None, ge=0)
-    currency: str = Field(default="USD", max_length=10)
-    
-    # Requirements
-    required_skills: Optional[str] = None  # JSON string or comma-separated
-    experience_years: Optional[int] = Field(None, ge=0)
-    education_level: Optional[str] = Field(None, max_length=100)
-    
-    # Eligibility Criteria (NEW - Pre-AI filtering)
-    min_cgpa: Optional[float] = Field(None, ge=0.0, le=10.0, description="Minimum CGPA required")
-    allowed_branches: Optional[str] = Field(None, description="JSON list of allowed branches")
-    max_backlogs: Optional[int] = Field(None, ge=0, description="Maximum backlogs allowed (0 = no backlogs)")
-    exclude_placed_students: bool = Field(True, description="Exclude already placed students")
-    
-    # Metadata
-    positions_available: int = Field(default=1, ge=1)
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    positions_available: Optional[int] = None
     deadline: Optional[datetime] = None
+    drive_date: Optional[datetime] = None
+    reporting_time: Optional[str] = None
+    min_cgpa: Optional[float] = None
+    allowed_branches: Optional[List[str]] = None
+    max_backlogs: Optional[int] = None
+    exclude_placed_students: bool = True
 
 
 class JobCreate(JobBase):
-    """Schema for creating a job posting."""
-    pass
+    college_id: int
 
 
 class JobUpdate(BaseModel):
-    """Schema for updating a job posting (all fields optional)."""
-    # Basic fields
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, min_length=1)
+    title: Optional[str] = None
+    description: Optional[str] = None
     requirements: Optional[str] = None
     responsibilities: Optional[str] = None
-    job_type: Optional[JobType] = None
-    status: Optional[JobStatus] = None
-    drive_status: Optional[DriveStatus] = None  # NEW
-    
-    # Location
-    location: Optional[str] = Field(None, max_length=255)
-    is_remote: Optional[bool] = None
-    
-    # Compensation
-    salary_min: Optional[float] = Field(None, ge=0)
-    salary_max: Optional[float] = Field(None, ge=0)
-    currency: Optional[str] = Field(None, max_length=10)
-    
-    # Requirements
     required_skills: Optional[str] = None
-    experience_years: Optional[int] = Field(None, ge=0)
-    education_level: Optional[str] = Field(None, max_length=100)
-    
-    # Eligibility Criteria (NEW)
-    min_cgpa: Optional[float] = Field(None, ge=0.0, le=10.0)
-    allowed_branches: Optional[str] = None
-    max_backlogs: Optional[int] = Field(None, ge=0)
-    exclude_placed_students: Optional[bool] = None
-    
-    # Metadata
-    positions_available: Optional[int] = Field(None, ge=1)
+    job_type: Optional[JobType] = None
+    location: Optional[str] = None
+    is_remote: Optional[bool] = None
+    salary_min: Optional[float] = None
+    salary_max: Optional[float] = None
+    positions_available: Optional[int] = None
     deadline: Optional[datetime] = None
+    drive_date: Optional[datetime] = None
+    reporting_time: Optional[str] = None
+    min_cgpa: Optional[float] = None
+    allowed_branches: Optional[List[str]] = None
+    max_backlogs: Optional[int] = None
+    exclude_placed_students: Optional[bool] = None
 
 
-class JobInDB(JobBase):
-    """Schema for job in database."""
+class JobResponse(JobBase):
     id: int
     recruiter_id: int
-    status: JobStatus  # Legacy
-    drive_status: DriveStatus  # NEW: Current approval status
+    college_id: int
+    status: DriveStatus
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
-class Job(JobInDB):
-    """Public job schema."""
-    pass
-
-
-class JobWithRecruiter(Job):
-    """Job schema with recruiter information."""
-    company_name: str
-    company_website: Optional[str]
-    
-    class Config:
-        from_attributes = True
-
-
-class JobList(BaseModel):
-    """Schema for paginated job list."""
-    total: int
-    page: int
-    page_size: int
-    jobs: List[Job]
+class JobWithStats(JobResponse):
+    """Job response with aggregate application stats for Placement Officer view."""
+    total_applied: int = 0
+    eligible_count: int = 0
+    selected_count: int = 0

@@ -1,0 +1,815 @@
+﻿.\venv\Scripts\pytho
+n : (trapped) error 
+reading bcrypt 
+version
+At line:1 char:55
++ ... 1\Backend"; .\
+venv\Scripts\python 
+test_e2e_live.py > 
+e2e_final_v2.txt ...
++                 ~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo  
+            : NotS  
+  pecified: ((tra   
+ pped) error rea    
+ding bcrypt ver    
+sion:String) []    
+, RemoteExcepti    
+on
+    + FullyQualifie 
+   dErrorId : Nati  
+  veCommandError
+ 
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\passlib\
+handlers\bcrypt.py",
+ line 620, in 
+_load_backend_mixin
+    version = _bcryp
+t.__about__.__versio
+n__
+AttributeError: 
+module 'bcrypt' has 
+no attribute 
+'__about__'
+DATABASE_URL: postgresql+asyncpg://postgres:gourav@localhost:5432/campus_placement_db
+Seeding baseline Admin & Officer in DB...
+2026-03-25 23:30:56,560 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-03-25 23:30:56,560 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:30:56,563 INFO sqlalchemy.engine.Engine select current_schema()
+2026-03-25 23:30:56,563 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:30:56,567 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-03-25 23:30:56,567 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:30:56,570 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:30:56,573 INFO sqlalchemy.engine.Engine INSERT INTO users (email, hashed_password, role, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::role, $4::BOOLEAN) RETURNING users.id, users.created_at, users.updated_at
+2026-03-25 23:30:56,574 INFO sqlalchemy.engine.Engine [generated in 0.00019s] ('admin088b09@test.com', '$2b$12$aEz0P6Cxb/QdHnpLkla85uO.5Dj7JbWrncq1f3VPW3JKkCVaHAD6C', 'ADMIN', True)
+2026-03-25 23:30:56,605 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:30:56,607 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:30:56,610 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-25 23:30:56,610 INFO sqlalchemy.engine.Engine [generated in 0.00016s] (49,)
+2026-03-25 23:30:56,612 INFO sqlalchemy.engine.Engine INSERT INTO colleges (name, location, website, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::BOOLEAN) RETURNING colleges.id
+2026-03-25 23:30:56,612 INFO sqlalchemy.engine.Engine [generated in 0.00018s] ('Test College 088b09', 'Campus', 'example.com', True)
+2026-03-25 23:30:56,617 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:30:56,619 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:30:56,622 INFO sqlalchemy.engine.Engine SELECT colleges.id, colleges.name, colleges.location, colleges.website, colleges.is_active 
+FROM colleges 
+WHERE colleges.id = $1::INTEGER
+2026-03-25 23:30:56,622 INFO sqlalchemy.engine.Engine [generated in 0.00026s] (17,)
+2026-03-25 23:30:56,916 INFO sqlalchemy.engine.Engine INSERT INTO users (email, hashed_password, role, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::role, $4::BOOLEAN) RETURNING users.id, users.created_at, users.updated_at
+2026-03-25 23:30:56,917 INFO sqlalchemy.engine.Engine [cached since 0.3434s ago] ('officer088b09@test.com', '$2b$12$vXtF0sySSh2TjjZOSXpFTuETqSqqiZvyXt3Fb/7e179nEBXiSQkma', 'PLACEMENT_OFFICER', True)
+2026-03-25 23:30:56,919 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-25 23:30:56,922 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:30:56,922 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.id = $1::INTEGER
+2026-03-25 23:30:56,922 INFO sqlalchemy.engine.Engine [cached since 0.3128s ago] (50,)
+2026-03-25 23:30:56,924 INFO sqlalchemy.engine.Engine INSERT INTO placement_officers (user_id, college_id, name, email, designation, department) VALUES ($1::INTEGER, $2::INTEGER, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR) RETURNING placement_officers.id
+2026-03-25 23:30:56,924 INFO sqlalchemy.engine.Engine [generated in 0.00015s] (50, 17, 'Head Officer', 'officer088b09@test.com', None, 'Placement')
+2026-03-25 23:30:56,925 INFO sqlalchemy.engine.Engine COMMIT
+INFO:     Started 
+server process 
+[57036]
+INFO:     Waiting 
+for application 
+startup.
+INFO:     
+Application startup 
+complete.
+INFO:     Uvicorn 
+running on http://12
+7.0.0.1:8000 (Press 
+CTRL+C to quit)
+DATABASE_URL: postgresql+asyncpg://postgres:gourav@localhost:5432/campus_placement_db
+INFO:     127.0.0.1:56971 - "GET /docs HTTP/1.1" 200 OK
+2026-03-25 23:31:01,110 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-03-25 23:31:01,110 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:31:01,110 INFO sqlalchemy.engine.Engine select current_schema()
+2026-03-25 23:31:01,110 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:31:01,112 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-03-25 23:31:01,112 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-25 23:31:01,117 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:31:01,148 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.email = $1::VARCHAR
+2026-03-25 23:31:01,148 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ('officer088b09@test.com',)
+(trapped) error 
+reading bcrypt 
+version
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\passlib\
+handlers\bcrypt.py",
+ line 620, in 
+_load_backend_mixin
+    version = _bcryp
+t.__about__.__versio
+n__
+AttributeError: 
+module 'bcrypt' has 
+no attribute 
+'__about__'
+2026-03-25 23:31:01,510 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:56973 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+2026-03-25 23:31:01,533 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-25 23:31:01,533 INFO sqlalchemy.engine.Engine SELECT users.id, users.email, users.hashed_password, users.role, users.is_active, users.created_at, users.updated_at 
+FROM users 
+WHERE users.email = $1::VARCHAR
+2026-03-25 23:31:01,533 INFO sqlalchemy.engine.Engine [cached since 0.3851s ago] ('recruiter088b09@test.com',)
+2026-03-25 23:31:01,810 INFO sqlalchemy.engine.Engine INSERT INTO users (email, hashed_password, role, is_active) VALUES ($1::VARCHAR, $2::VARCHAR, $3::role, $4::BOOLEAN) RETURNING users.id, users.created_at, users.updated_at
+2026-03-25 23:31:01,810 INFO sqlalchemy.engine.Engine [generated in 0.00033s] ('recruiter088b09@test.com', '$2b$12$1rUIQr5He34mtZnfNbd3dOSd8SfDYMDX3t7vQKsil0FwH4yJgUG0.', 'RECRUITER', True)
+2026-03-25 23:31:01,813 INFO sqlalchemy.engine.Engine INSERT INTO recruiters (user_id, company_name, email, website, is_verified) VALUES ($1::INTEGER, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::BOOLEAN) RETURNING recruiters.id
+2026-03-25 23:31:01,813 INFO sqlalchemy.engine.Engine [generated in 0.00021s] (51, 'Google', 'recruiter088b09@test.com', None, False)
+2026-03-25 23:31:01,821 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:56973 - "POST /api/v1/auth/register/recruiter HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception 
+in ASGI application
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 522, in 
+_prepare_and_execute
+    prepared_stmt, 
+attributes = await a
+dapt_connection._pre
+pare(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 773, in 
+_prepare
+    prepared_stmt = 
+await self._connecti
+on.prepare(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\asyncpg\
+connection.py", 
+line 636, in prepare
+    return await 
+self._prepare(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\asyncpg\
+connection.py", 
+line 654, in 
+_prepare
+    stmt = await 
+self._get_statement(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\asyncpg\
+connection.py", 
+line 433, in 
+_get_statement
+    statement = 
+await self._protocol
+.prepare(
+  File "asyncpg\prot
+ocol\protocol.pyx", 
+line 166, in prepare
+asyncpg.exceptions.U
+ndefinedColumnError:
+ column "email" of 
+relation 
+"recruiters" does 
+not exist
+
+The above exception 
+was the direct 
+cause of the 
+following exception:
+
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1969, in 
+_exec_single_context
+    self.dialect.do_
+execute(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\default.py
+", line 922, in 
+do_execute
+    cursor.execute(s
+tatement, 
+parameters)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 580, in execute
+    self._adapt_conn
+ection.await_(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\_concurrency
+_py3k.py", line 
+130, in await_only
+    return current.d
+river.switch(awaitab
+le)  # type: ignore[
+no-any-return]
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\_concurrency
+_py3k.py", line 
+195, in 
+greenlet_spawn
+    value = await 
+result
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 558, in 
+_prepare_and_execute
+    self._handle_exc
+eption(error)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 509, in 
+_handle_exception
+    self._adapt_conn
+ection._handle_excep
+tion(error)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 797, in 
+_handle_exception
+    raise 
+translated_error 
+from error
+sqlalchemy.dialects.
+postgresql.asyncpg.A
+syncAdapt_asyncpg_db
+api.ProgrammingError
+: <class 'asyncpg.ex
+ceptions.UndefinedCo
+lumnError'>: column 
+"email" of relation 
+"recruiters" does 
+not exist
+
+The above exception 
+was the direct 
+cause of the 
+following exception:
+
+Traceback (most 
+recent call last):
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\uvicorn\
+protocols\http\httpt
+ools_impl.py", line 
+419, in run_asgi
+    result = await 
+app(  # type: ignore
+[func-returns-value]
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\uvicorn\
+middleware\proxy_hea
+ders.py", line 84, 
+in __call__
+    return await 
+self.app(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\fastapi\
+applications.py", 
+line 1054, in 
+__call__
+    await super().__
+call__(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\applications.py", 
+line 123, in 
+__call__
+    await self.middl
+eware_stack(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\middleware\errors.
+py", line 186, in 
+__call__
+    raise exc
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\middleware\errors.
+py", line 164, in 
+__call__
+    await 
+self.app(scope, 
+receive, _send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\middleware\cors.py
+", line 83, in 
+__call__
+    await 
+self.app(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\middleware\excepti
+ons.py", line 62, 
+in __call__
+    await wrap_app_h
+andling_exceptions(s
+elf.app, 
+conn)(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\_exception_handler
+.py", line 64, in 
+wrapped_app
+    raise exc
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\_exception_handler
+.py", line 53, in 
+wrapped_app
+    await 
+app(scope, receive, 
+sender)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\routing.py", line 
+762, in __call__
+    await self.middl
+eware_stack(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\routing.py", line 
+782, in app
+    await 
+route.handle(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\routing.py", line 
+297, in handle
+    await 
+self.app(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\routing.py", line 
+77, in app
+    await wrap_app_h
+andling_exceptions(a
+pp, request)(scope, 
+receive, send)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\_exception_handler
+.py", line 64, in 
+wrapped_app
+    raise exc
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\_exception_handler
+.py", line 53, in 
+wrapped_app
+    await 
+app(scope, receive, 
+sender)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\starlett
+e\routing.py", line 
+72, in app
+    response = 
+await func(request)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\fastapi\
+routing.py", line 
+299, in app
+    raise e
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\fastapi\
+routing.py", line 
+294, in app
+    raw_response = 
+await run_endpoint_f
+unction(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\fastapi\
+routing.py", line 
+191, in run_endpoint
+_function
+    return await dep
+endant.call(**values
+)
+  File 
+"D:\Gourav\Project 1
+\Backend\app\api\v1\
+auth.py", line 156, 
+in 
+register_recruiter
+    await 
+db.commit()
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\ext\asyncio\sessi
+on.py", line 1011, 
+in commit
+    await greenlet_s
+pawn(self.sync_sessi
+on.commit)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\_concurrency
+_py3k.py", line 
+202, in 
+greenlet_spawn
+    result = context
+.switch(value)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 1969, in commit
+    trans.commit(_to
+_root=True)
+  File "<string>", 
+line 2, in commit
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\state_changes
+.py", line 139, in 
+_go
+    ret_value = 
+fn(self, *arg, **kw)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 1256, in commit
+    
+self._prepare_impl()
+  File "<string>", 
+line 2, in 
+_prepare_impl
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\state_changes
+.py", line 139, in 
+_go
+    ret_value = 
+fn(self, *arg, **kw)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 1231, in 
+_prepare_impl
+    
+self.session.flush()
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 4312, in flush
+    
+self._flush(objects)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 4447, in _flush
+    with 
+util.safe_reraise():
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\langhelpers.
+py", line 146, in 
+__exit__
+    raise exc_value.
+with_traceback(exc_t
+b)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\session.py", 
+line 4408, in _flush
+    flush_context.ex
+ecute()
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\unitofwork.py
+", line 466, in 
+execute
+    
+rec.execute(self)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\unitofwork.py
+", line 642, in 
+execute
+    util.preloaded.o
+rm_persistence.save_
+obj(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\persistence.p
+y", line 93, in 
+save_obj
+    _emit_insert_sta
+tements(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\orm\persistence.p
+y", line 1227, in _e
+mit_insert_statement
+s
+    result = 
+connection.execute(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1416, in 
+execute
+    return meth(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\sql\elements.py",
+ line 517, in _execu
+te_on_connection
+    return connectio
+n._execute_clauseele
+ment(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1639, in _execu
+te_clauseelement
+    ret = self._exec
+ute_context(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1848, in 
+_execute_context
+    return self._exe
+c_single_context(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1988, in 
+_exec_single_context
+    self._handle_dba
+pi_exception(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 2344, in _handl
+e_dbapi_exception
+    raise sqlalchemy
+_exception.with_trac
+eback(exc_info[2]) 
+from e
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\base.py", 
+line 1969, in 
+_exec_single_context
+    self.dialect.do_
+execute(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\engine\default.py
+", line 922, in 
+do_execute
+    cursor.execute(s
+tatement, 
+parameters)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 580, in execute
+    self._adapt_conn
+ection.await_(
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\_concurrency
+_py3k.py", line 
+130, in await_only
+    return current.d
+river.switch(awaitab
+le)  # type: ignore[
+no-any-return]
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\util\_concurrency
+_py3k.py", line 
+195, in 
+greenlet_spawn
+    value = await 
+result
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 558, in 
+_prepare_and_execute
+    self._handle_exc
+eption(error)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 509, in 
+_handle_exception
+    self._adapt_conn
+ection._handle_excep
+tion(error)
+  File 
+"D:\Gourav\Project 1
+\Backend\venv\lib\si
+te-packages\sqlalche
+my\dialects\postgres
+ql\asyncpg.py", 
+line 797, in 
+_handle_exception
+    raise 
+translated_error 
+from error
+sqlalchemy.exc.Progr
+ammingError: (sqlalc
+hemy.dialects.postgr
+esql.asyncpg.Program
+mingError) <class 'a
+syncpg.exceptions.Un
+definedColumnError'>
+: column "email" of 
+relation 
+"recruiters" does 
+not exist
+[SQL: INSERT INTO 
+recruiters 
+(user_id, 
+company_name, 
+email, website, 
+is_verified) VALUES 
+($1::INTEGER, 
+$2::VARCHAR, 
+$3::VARCHAR, 
+$4::VARCHAR, 
+$5::BOOLEAN) 
+RETURNING 
+recruiters.id]
+[parameters: (51, 
+'Google', 'recruiter
+088b09@test.com', 
+None, False)]
+(Background on this 
+error at: https://sq
+lalche.me/e/20/f405)
+Starting uvicorn server in background...
+Server is up!
+
+[Phase 1: Setup Recruiter]
+[FAIL] ASSERTION FAILED: Recruiter registered (Expected 201, got 500)
+Response Body dumped to failed_response.txt
+Shutting down test server...

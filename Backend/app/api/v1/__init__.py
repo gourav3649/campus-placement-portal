@@ -1,1 +1,3 @@
-"""API v1 package initialization."""
+from fastapi import APIRouter
+
+router = APIRouter()

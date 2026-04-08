@@ -1,120 +1,84 @@
-import { useQuery } from '@tanstack/react-query'
-import { applicationsApi } from '@/services/api'
-import { useNavigate } from 'react-router-dom'
-import { FileText, Clock, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react'
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  reviewing: { label: 'Reviewing', color: 'bg-blue-100 text-blue-700', icon: AlertCircle },
-  shortlisted: { label: 'Shortlisted', color: 'bg-purple-100 text-purple-700', icon: AlertCircle },
-  accepted: { label: 'Accepted', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  rejected: { label: 'Rejected', color: 'bg-red-100 text-red-700', icon: XCircle },
-}
+import { useState, useEffect } from 'react';
+import { api } from '../../services/api';
+import { Application, ApplicationStatus } from '../../types';
+import { Link } from 'react-router-dom';
+import { Briefcase, ChevronRight, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function MyApplications() {
-  const navigate = useNavigate()
+  const [apps, setApps] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: applications = [], isLoading } = useQuery({
-    queryKey: ['my-applications'],
-    queryFn: async () => {
-      const res = await applicationsApi.getMyApplications()
-      return res.data
-    },
-  })
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const res = await api.get('/applications/me');
+        setApps(res.data);
+      } catch (err) {
+        console.error("Failed to fetch applications");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchApps();
+  }, []);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 bg-gray-200 rounded w-1/4 animate-pulse" />
-        {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-            <div className="h-5 bg-gray-200 rounded w-1/3 mb-2" />
-            <div className="h-4 bg-gray-100 rounded w-1/4" />
-          </div>
-        ))}
-      </div>
-    )
-  }
+  if (isLoading) return <div className="p-8">Loading applications...</div>;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
-        <span className="text-sm text-gray-500">{applications.length} total</span>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="page-header">
+        <h1 className="page-title">My Applications</h1>
+        <p className="text-sm text-gray-500 mt-1">Track your progress and upcoming rounds for campus drives.</p>
       </div>
 
-      {/* Summary bar */}
-      {applications.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {Object.entries(STATUS_CONFIG).map(([status, cfg]) => {
-            const count = applications.filter((a: any) => a.status === status).length
-            const Icon = cfg.icon
-            return (
-              <div key={status} className="bg-white rounded-lg shadow p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-full ${cfg.color}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">{cfg.label}</p>
-                  <p className="text-xl font-bold text-gray-900">{count}</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {applications.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No applications yet</p>
-          <p className="text-gray-400 text-sm mt-1">Browse jobs and start applying!</p>
-          <button
-            onClick={() => navigate('/jobs')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Browse Jobs
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {applications.map((app: any) => {
-            const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.pending
-            const Icon = cfg.icon
-            return (
-              <div
-                key={app.id}
-                onClick={() => navigate(`/applications/${app.id}`)}
-                className="bg-white rounded-lg shadow p-5 hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between gap-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">
-                    {app.job?.title || `Job #${app.job_id}`}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {app.job?.company_name || 'Company'} · Applied {new Date(app.applied_at || app.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                  {app.match_score && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 w-24 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${app.match_score}%` }} />
-                      </div>
-                      <span className="text-xs text-gray-500">Match: {app.match_score.toFixed(0)}%</span>
+      <div className="space-y-4">
+        {apps.length === 0 ? (
+          <div className="p-12 text-center bg-gray-50 rounded-2xl border border-gray-200">
+            <Briefcase className="mx-auto text-gray-400 mb-3" size={32} />
+            <h3 className="text-lg font-medium text-gray-900">No applications yet</h3>
+            <p className="text-gray-500 mt-1 mb-4">Start applying to campus drives to see your history here.</p>
+            <Link to="/jobs" className="btn-primary">Browse Drives</Link>
+          </div>
+        ) : (
+          apps.map(app => (
+            <Link key={app.id} to={`/applications/${app.id}`} className="block card p-0 hover:border-blue-300 transition-colors group">
+              <div className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-12 h-12 shrink-0 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center font-bold text-xl">
+                    {app.job?.company_name?.charAt(0) || 'C'}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{app.job?.title || 'Unknown Role'}</h3>
+                    <p className="font-medium text-gray-600 mt-0.5">{app.job?.company_name || 'Unknown Company'}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                      <span>Applied: {format(new Date(app.applied_at), 'MMM d, yyyy')}</span>
+                      {app.rounds && app.rounds.length > 0 && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                          <span className="font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                            Latest Round: {app.rounds[app.rounds.length - 1].round_name}
+                          </span>
+                        </>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${cfg.color}`}>
-                    <Icon className="w-3.5 h-3.5" />
-                    {cfg.label}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
+
+                <div className="flex items-center justify-between w-full sm:w-auto gap-4 pl-16 sm:pl-0 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
+                  <div className="flex items-center gap-2">
+                    {app.status === ApplicationStatus.ACCEPTED && <CheckCircle className="text-green-500" size={18}/>}
+                    {app.status === ApplicationStatus.REJECTED && <XCircle className="text-red-500" size={18}/>}
+                    {app.status === ApplicationStatus.PENDING && <Clock className="text-yellow-500" size={18}/>}
+                    <span className={`badge status-${app.status} text-sm`}>{app.status}</span>
+                  </div>
+                  <ChevronRight size={20} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
+            </Link>
+          ))
+        )}
+      </div>
     </div>
-  )
+  );
 }

@@ -1,155 +1,101 @@
-import { useQuery } from '@tanstack/react-query'
-import { jobsApi, applicationsApi } from '@/services/api'
-import { useAuth } from '@/context/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { Briefcase, Users, PlusCircle, ChevronRight, Eye } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { api } from '../../services/api';
+import { DriveStatus } from '../../types';
+import { Link } from 'react-router-dom';
+import { Briefcase, Users, Clock, Plus } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function RecruiterDashboard() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
+  const [drives, setDrives] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: myJobs = [], isLoading: jobsLoading } = useQuery({
-    queryKey: ['recruiter-jobs'],
-    queryFn: async () => {
-      const res = await jobsApi.getAll({ recruiter_id: user?.id })
-      return res.data
-    },
-  })
+  useEffect(() => {
+    const fetchDrives = async () => {
+      try {
+        const res = await api.get('/jobs/my-jobs');
+        setDrives(res.data);
+      } catch (err) {
+        console.error("Failed to fetch recruiter drives", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDrives();
+  }, []);
 
-  const { data: allApplications = [], isLoading: appsLoading } = useQuery({
-    queryKey: ['recruiter-applications'],
-    queryFn: async () => {
-      const res = await applicationsApi.getAll()
-      return res.data
-    },
-  })
-
-  const totalApps = allApplications.length
-  const pendingApps = allApplications.filter((a: any) => a.status === 'pending').length
-  const shortlisted = allApplications.filter((a: any) => a.status === 'shortlisted').length
-  const activeJobs = myJobs.filter((j: any) => j.is_active).length
-
-  const stats = [
-    { label: 'Active Jobs', value: activeJobs, icon: Briefcase, color: 'bg-blue-500' },
-    { label: 'Total Applications', value: totalApps, icon: Users, color: 'bg-indigo-500' },
-    { label: 'Pending Review', value: pendingApps, icon: Eye, color: 'bg-yellow-500' },
-    { label: 'Shortlisted', value: shortlisted, icon: Users, color: 'bg-green-500' },
-  ]
+  if (isLoading) return <div className="p-8">Loading your drives...</div>;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Recruiter Dashboard</h1>
-        <button
-          onClick={() => navigate('/recruiter/jobs/post')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <PlusCircle className="w-4 h-4" /> Post a Job
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map(stat => (
-          <div key={stat.label} className="bg-white rounded-lg shadow p-5 flex items-center gap-4">
-            <div className={`p-3 rounded-full ${stat.color} bg-opacity-10`}>
-              <stat.icon className={`w-5 h-5 ${stat.color.replace('bg-', 'text-')}`} />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* My Job Postings */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="flex items-center justify-between p-5 border-b">
-            <h2 className="font-semibold text-gray-900">Your Job Postings</h2>
-            <button onClick={() => navigate('/recruiter/jobs')} className="text-sm text-blue-600 hover:underline">
-              View all
-            </button>
-          </div>
-          {jobsLoading ? (
-            <div className="p-5 space-y-3 animate-pulse">
-              {[1, 2].map(i => <div key={i} className="h-10 bg-gray-100 rounded" />)}
-            </div>
-          ) : myJobs.length === 0 ? (
-            <div className="p-10 text-center">
-              <Briefcase className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">No jobs posted yet</p>
-              <button
-                onClick={() => navigate('/recruiter/jobs/post')}
-                className="mt-3 text-sm text-blue-600 hover:underline"
-              >
-                Post your first job →
-              </button>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {myJobs.slice(0, 5).map((job: any) => (
-                <li
-                  key={job.id}
-                  onClick={() => navigate(`/recruiter/jobs/${job.id}/applications`)}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer"
-                >
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">{job.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {job.applications_count ?? 0} applicants · {job.is_active ? '🟢 Active' : '⚫ Inactive'}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </li>
-              ))}
-            </ul>
-          )}
+    <div className="space-y-6">
+      <div className="page-header flex justify-between items-center pr-2">
+        <div>
+          <h1 className="page-title">My Campus Drives</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your active postings and track applicant funnels.</p>
         </div>
+        <Link to="/jobs/new" className="btn-primary flex items-center gap-2">
+          <Plus size={18} /> Post New Drive
+        </Link>
+      </div>
 
-        {/* Recent Applications */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="flex items-center justify-between p-5 border-b">
-            <h2 className="font-semibold text-gray-900">Recent Applications</h2>
-            <button onClick={() => navigate('/recruiter/applications')} className="text-sm text-blue-600 hover:underline">
-              View all
-            </button>
-          </div>
-          {appsLoading ? (
-            <div className="p-5 space-y-3 animate-pulse">
-              {[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded" />)}
-            </div>
-          ) : allApplications.length === 0 ? (
-            <div className="p-10 text-center">
-              <Users className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">No applications yet</p>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {allApplications.slice(0, 5).map((app: any) => (
-                <li key={app.id} className="flex items-center justify-between p-4">
+      {drives.length === 0 ? (
+        <div className="card p-12 flex flex-col items-center justify-center text-center border-dashed border-2 border-gray-200 bg-gray-50">
+          <Briefcase size={40} className="text-gray-300 mb-4" />
+          <h3 className="text-xl font-bold text-gray-800">No drives posted yet</h3>
+          <p className="text-gray-500 mt-2 mb-6 max-w-sm">Create your first campus drive to start hiring students from this college.</p>
+          <Link to="/jobs/new" className="btn-primary">Create Drive</Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {drives.map(drive => (
+            <div key={drive.id} className="card p-0 flex flex-col hover:border-blue-300 transition-colors group">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="font-medium text-gray-900 text-sm">
-                      {app.student?.first_name} {app.student?.last_name || `Student #${app.student_id}`}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {app.job?.title || `Job #${app.job_id}`}
+                    <h3 className="text-xl font-bold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                      {drive.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                      <Clock size={14}/> 
+                      {drive.drive_date ? format(new Date(drive.drive_date), 'MMM d, yyyy') : 'No drive date set'}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${app.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                      app.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        app.status === 'shortlisted' ? 'bg-purple-100 text-purple-700' :
-                          'bg-yellow-100 text-yellow-700'
-                    }`}>
-                    {app.status}
+                  <span className={`badge status-${drive.status} shrink-0`}>{drive.status}</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-6">
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-bold text-gray-900">{drive.total_applied || 0}</span>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mt-1">Applied</span>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-bold text-blue-700">{drive.eligible_count || 0}</span>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-blue-600 mt-1">Eligible</span>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-xl border border-green-100 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-bold text-green-700">{drive.selected_count || 0}</span>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-green-600 mt-1">Offers</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto border-t border-gray-100 p-4 bg-gray-50/50 flex justify-between items-center rounded-b-2xl">
+                {drive.status === DriveStatus.DRAFT ? (
+                  <span className="text-xs font-medium text-amber-600 flex items-center gap-1.5">
+                    <Clock size={14}/> Pending Placement Approval
                   </span>
-                </li>
-              ))}
-            </ul>
-          )}
+                ) : (
+                  <Link 
+                    to={`/jobs/${drive.id}/applicants`} 
+                    className="btn-secondary w-full justify-center gap-2"
+                  >
+                    <Users size={16}/> View Applicants
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
-  )
+  );
 }

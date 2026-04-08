@@ -1,109 +1,97 @@
-import { Outlet, Link } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  Briefcase, 
-  FileText, 
-  User, 
-  Users, 
-  Building2 
-} from 'lucide-react'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { LogOut, LayoutDashboard, Briefcase, Users, FileText, Settings } from 'lucide-react';
+import { Role } from '../types';
+import NotificationBell from '../components/NotificationBell';
 
 export default function MainLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const getNavItems = () => {
-    const common = [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/profile', icon: User, label: 'Profile' },
-    ]
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-    switch (user?.role) {
-      case 'student':
-        return [
-          { to: '/student', icon: LayoutDashboard, label: 'Dashboard' },
-          { to: '/jobs', icon: Briefcase, label: 'Jobs' },
-          { to: '/applications', icon: FileText, label: 'My Applications' },
-          { to: '/profile', icon: User, label: 'Profile' },
-        ]
-      case 'recruiter':
-        return [
-          { to: '/recruiter', icon: LayoutDashboard, label: 'Dashboard' },
-          { to: '/recruiter/jobs/create', icon: Briefcase, label: 'Post Job' },
-          { to: '/profile', icon: User, label: 'Profile' },
-        ]
-      case 'placement_officer':
-        return [
-          { to: '/placement', icon: LayoutDashboard, label: 'Dashboard' },
-          { to: '/placement/students', icon: Users, label: 'Students' },
-          { to: '/placement/recruiters', icon: Building2, label: 'Recruiters' },
-          { to: '/profile', icon: User, label: 'Profile' },
-        ]
-      case 'admin':
-        return [
-          { to: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-          { to: '/profile', icon: User, label: 'Profile' },
-        ]
-      default:
-        return common
-    }
-  }
-
-  const navItems = getNavItems()
+  // Nav items based on role
+  const navItems = [
+    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    ...(user?.role === Role.STUDENT ? [
+      { label: 'Jobs', path: '/jobs', icon: Briefcase },
+      { label: 'My Applications', path: '/applications', icon: FileText },
+    ] : []),
+    ...(user?.role === Role.PLACEMENT_OFFICER ? [
+      { label: 'Drives', path: '/jobs', icon: Briefcase },
+      { label: 'Students', path: '/students', icon: Users },
+    ] : []),
+    ...(user?.role === Role.RECRUITER ? [
+      { label: 'My Drives', path: '/jobs', icon: Briefcase },
+    ] : []),
+    { label: 'Settings', path: '/settings', icon: Settings },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">
-                Campus Placement Portal
-              </h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {user?.email}
-              </span>
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary-100 text-primary-800">
-                {user?.role?.replace('_', ' ').toUpperCase()}
-              </span>
-              <button
-                onClick={logout}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed inset-y-0 shadow-sm z-10">
+        <div className="h-16 flex items-center px-6 border-b border-gray-100">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold mr-3 shadow-md">C</div>
+          <span className="font-bold text-gray-900 text-lg">Portal</span>
         </div>
-      </header>
-
-      <div className="flex max-w-7xl mx-auto">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)]">
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => (
+        
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 px-2">Menu</div>
+          {navItems.map((item) => {
+            const isActive = location.pathname.startsWith(item.path);
+            const Icon = item.icon;
+            return (
               <Link
-                key={item.to}
-                to={item.to}
-                className="flex items-center gap-3 px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                key={item.path}
+                to={item.path}
+                className={`nav-item ${isActive ? 'nav-item-active' : ''}`}
               >
-                <item.icon className="w-5 h-5" />
+                <Icon size={18} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
                 {item.label}
               </Link>
-            ))}
-          </nav>
-        </aside>
+            );
+          })}
+        </nav>
 
-        {/* Main Content */}
-        <main className="flex-1 p-8">
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 px-2 py-3 mb-2">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
+              {user?.email[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.role.replace('_', ' ')}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="btn-ghost w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 ml-64 flex flex-col min-h-screen transition-all">
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+          <h2 className="text-xl font-semibold text-gray-800 capitalize">
+            {location.pathname.split('/')[1] || 'Dashboard'}
+          </h2>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <div className="p-8 max-w-7xl mx-auto w-full flex-1">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
-  )
+  );
 }
