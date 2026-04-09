@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Any, Optional
+import logging
 
 from app.database import get_db
 from app.models.job import Job, DriveStatus
@@ -10,8 +11,10 @@ from app.models.recruiter import Recruiter
 from app.schemas.job import JobCreate, JobUpdate, JobResponse, JobWithStats
 from app.api.deps import get_current_recruiter, get_current_placement_officer, get_current_student
 from app.services.notification_service import create_notification
+from app.services.embedding_service import generate_embedding, prepare_job_text_for_embedding
 from app.models.notification import NotificationType
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -32,9 +35,38 @@ async def create_job(
         recruiter_id=recruiter.id,
         status=DriveStatus.DRAFT,
     )
+    
+    # Generate embedding for the job description (REQUIRED - no silent failures)
+    try:
+        job_text = prepare_job_text_for_embedding(db_job)
+        db_job.embedding_vector = generate_embedding(job_text)
+        logger.info(f"Job embedding generated for job {db_job.title} (recruiter: {recruiter.id})")
+    except ValueError as ve:
+        logger.error(f"Job embedding generation failed (validation): {str(ve)} (recruiter: {recruiter.id})")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to generate job embedding: {str(ve)}"
+        )
+    except Exception as e:
+        logger.error(f"Job embedding generation failed (unexpected): {str(e)} (recruiter: {recruiter.id})")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate job embedding. Please try again."
+        )
+    
+    # Verify embedding was created
+    if not db_job.embedding_vector:
+        logger.error(f"Job embedding is null after generation (recruiter: {recruiter.id})")
+        raise HTTPException(
+            status_code=500,
+            detail="Job embedding generation produced empty result. Please try again."
+        )
+    
     db.add(db_job)
     await db.commit()
     await db.refresh(db_job)
+    
+    logger.info(f"Job created successfully with embedding (job_id: {db_job.id}, recruiter: {recruiter.id})")
     return db_job
 
 
@@ -81,10 +113,38 @@ async def update_job(
     if job.status != DriveStatus.DRAFT:
         raise HTTPException(status_code=400, detail="Only DRAFT jobs can be edited")
 
-    for field, value in job_in.model_dump(exclude_unset=True).items():
+    # Track which fields are being updated (for embedding recomputation)
+    embedding_relevant_fields = {'title', 'description', 'required_skills', 'requirements', 'responsibilities'}
+    fields_to_update = job_in.model_dump(exclude_unset=True)
+    needs_embedding_update = any(field in embedding_relevant_fields for field in fields_to_update.keys())
+    
+    # Apply updates
+    for field, value in fields_to_update.items():
         setattr(job, field, value)
+    
+    # Recompute embedding if relevant fields changed
+    if needs_embedding_update:
+        try:
+            job_text = prepare_job_text_for_embedding(job)
+            job.embedding_vector = generate_embedding(job_text)
+            logger.info(f"Job embedding recomputed after update (job_id: {job_id}, recruiter: {recruiter.id})")
+        except ValueError as ve:
+            logger.error(f"Job embedding recomputation failed (validation): {str(ve)} (job_id: {job_id})")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to recompute job embedding: {str(ve)}"
+            )
+        except Exception as e:
+            logger.error(f"Job embedding recomputation failed (unexpected): {str(e)} (job_id: {job_id})")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to recompute job embedding. Please try again."
+            )
+    
     await db.commit()
     await db.refresh(job)
+    
+    logger.info(f"Job updated successfully (job_id: {job_id}, recruiter: {recruiter.id}, embedding_updated: {needs_embedding_update})")
     return job
 
 
@@ -147,6 +207,35 @@ async def approve_job(
     if not recruiter or not recruiter.is_verified:
         raise HTTPException(status_code=403, detail="Recruiter is not verified. Verify the recruiter before approving drives.")
 
+    # Ensure embedding is generated (in case it failed during creation or update)
+    if not job.embedding_vector:
+        try:
+            job_text = prepare_job_text_for_embedding(job)
+            job.embedding_vector = generate_embedding(job_text)
+            logger.info(f"Job embedding generated during approval (job_id: {job_id}, officer: {officer.id})")
+        except ValueError as ve:
+            logger.error(f"Job embedding generation failed during approval (validation): {str(ve)} (job_id: {job_id})")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to generate job embedding: {str(ve)}"
+            )
+        except Exception as e:
+            logger.error(f"Job embedding generation failed during approval (unexpected): {str(e)} (job_id: {job_id})")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate job embedding. Please try again."
+            )
+    else:
+        logger.debug(f"Job embedding already present, skipping generation (job_id: {job_id})")
+
+    # Verify embedding exists before approval
+    if not job.embedding_vector:
+        logger.error(f"Job embedding is null before approval (job_id: {job_id})")
+        raise HTTPException(
+            status_code=500,
+            detail="Job embedding is missing. Please contact support."
+        )
+
     job.status = DriveStatus.APPROVED
     await db.flush()
 
@@ -169,6 +258,8 @@ async def approve_job(
 
     await db.commit()
     await db.refresh(job)
+    
+    logger.info(f"Job approved successfully with embedding (job_id: {job_id}, officer: {officer.id})")
     return job
 
 

@@ -3,4 +3,4 @@ from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse, S
 from app.schemas.recruiter import RecruiterCreate, RecruiterUpdate, RecruiterResponse, RecruiterProfileResponse, RecruiterBase
 from app.schemas.placement_officer import PlacementOfficerCreate, PlacementOfficerUpdate, PlacementOfficerResponse, PlacementOfficerProfileResponse, PlacementOfficerBase
 from app.schemas.college import CollegeCreate, CollegeUpdate, CollegeResponse, CollegeBase
-from app.schemas.resume import ResumeCreate, ResumeUpdate, ResumeResponse, ResumeDetailResponse, ResumeBase
+from app.schemas.resume import ResumeCreate, ResumeResponse, ResumeBase, ResumeDetail, ResumeUploadResponse

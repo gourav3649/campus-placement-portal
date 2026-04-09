@@ -44,14 +44,10 @@ async def create_offer(
     )
     db.add(offer)
 
-    # Mark application as ACCEPTED
-    application.status = ApplicationStatus.ACCEPTED
-
-    # Mark student as placed
+    # Notify student of offer
     student_result = await db.execute(select(Student).filter(Student.id == application.student_id))
     student = student_result.scalar_one_or_none()
     if student:
-        student.is_placed = True
         await create_notification(
             db,
             user_id=student.user_id,
@@ -82,16 +78,137 @@ async def respond_to_offer(
     db: AsyncSession = Depends(get_db),
     student: Student = Depends(get_current_student),
 ) -> Any:
-    result = await db.execute(select(Offer).filter(Offer.id == offer_id, Offer.student_id == student.id))
-    offer = result.scalar_one_or_none()
-    if not offer:
-        raise HTTPException(status_code=404, detail="Offer not found")
-    if offer.status != OfferStatus.EXTENDED:
-        raise HTTPException(status_code=400, detail="Offer has already been responded to")
+    """
+    Student responds to an offer (accept or decline).
+    
+    When student ACCEPTS an offer:
+    - Lock the offer row to prevent race conditions
+    - Check if student already has another accepted offer
+    - If not, mark this offer as ACCEPTED
+    - Mark student as placed
+    - Revoke all other EXTENDED offers for this student
+    - Update related application status
+    - All changes atomic (transaction-safe)
+    """
+    try:
+        # FIX 1 - Lock student first
+        await db.execute(
+            select(Student).filter(Student.id == student.id).with_for_update()
+        )
+        
+        # Then lock offer
+        result = await db.execute(
+            select(Offer).filter(Offer.id == offer_id, Offer.student_id == student.id).with_for_update()
+        )
+        offer = result.scalar_one_or_none()
+        if not offer:
+            raise HTTPException(status_code=404, detail="Offer not found")
+        if offer.status != OfferStatus.EXTENDED:
+            raise HTTPException(status_code=400, detail="Offer has already been responded to")
 
-    offer.status = OfferStatus.ACCEPTED if response.accept else OfferStatus.DECLINED
-    await db.commit()
-    await db.refresh(offer)
+        if response.accept:
+            # FIX 2 - Step 2: Prevent multiple accepted offers
+            existing_accepted = await db.execute(
+                select(Offer).filter(
+                    Offer.student_id == offer.student_id,
+                    Offer.status == OfferStatus.ACCEPTED
+                )
+            )
+            if existing_accepted.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=400,
+                    detail="You have already accepted an offer"
+                )
+            
+            # FIX 2 - Step 3: Correct acceptance flow
+            offer.status = OfferStatus.ACCEPTED
+            
+            # Mark student as placed
+            student_result = await db.execute(
+                select(Student).filter(Student.id == offer.student_id)
+            )
+            student_to_update = student_result.scalar_one()
+            student_to_update.is_placed = True
+            
+            # Mark related application as accepted
+            application_result = await db.execute(
+                select(Application).filter(Application.id == offer.application_id)
+            )
+            application = application_result.scalar_one()
+            
+            # FIX 4 - Guard Application Status Before Accept
+            if application.status in [ApplicationStatus.REJECTED, ApplicationStatus.WITHDRAWN]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot accept offer for invalid application state"
+                )
+            
+            application.status = ApplicationStatus.ACCEPTED
+            
+            # FIX 2 - Step 4: Revoke other offers
+            other_offers_result = await db.execute(
+                select(Offer).filter(
+                    Offer.student_id == offer.student_id,
+                    Offer.id != offer.id,
+                    Offer.status == OfferStatus.EXTENDED
+                )
+            )
+            other_offers = other_offers_result.scalars().all()
+            
+            for other_offer in other_offers:
+                other_offer.status = OfferStatus.REVOKED
+            
+            # Create notification for student accepting offer
+            from app.models.notification import NotificationType
+            await create_notification(
+                db,
+                user_id=student.user_id,
+                title="Offer Accepted ✓",
+                message=f"Congratulations! You have accepted the offer for {offer.ctc} LPA. Other offers have been revoked.",
+                notification_type=NotificationType.OFFER_EXTENDED,
+                related_application_id=offer.application_id,
+            )
+            
+            # Create notifications for other offers being revoked
+            for other_offer in other_offers:
+                await create_notification(
+                    db,
+                    user_id=student.user_id,
+                    title="Other Offer Revoked",
+                    message="Since you accepted an offer from another company, this offer has been automatically revoked.",
+                    notification_type=NotificationType.OFFER_EXTENDED,
+                    related_application_id=other_offer.application_id,
+                )
+        else:
+            # Student is declining this offer
+            offer.status = OfferStatus.DECLINED
+            
+            # Create notification
+            from app.models.notification import NotificationType
+            await create_notification(
+                db,
+                user_id=student.user_id,
+                title="Offer Declined",
+                message="You have declined the offer. You can continue exploring other opportunities.",
+                notification_type=NotificationType.OFFER_EXTENDED,
+                related_application_id=offer.application_id,
+            )
+        
+        # Commit all changes atomically
+        await db.commit()
+        await db.refresh(offer)
+        
+    # FIX 1 - Correct Exception Handling
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Internal error while processing offer"
+        )
+    
     return offer
 
 
