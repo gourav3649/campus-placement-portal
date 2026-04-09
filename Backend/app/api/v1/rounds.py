@@ -49,6 +49,9 @@ async def add_round(
         updated_by_id=officer.user_id,
         **round_in.model_dump(),
     )
+    # FIX 1: Set evaluated_by_id if ANY evaluation field provided
+    if round_in.score is not None or round_in.recommendation is not None or round_in.feedback is not None:
+        db_round.evaluated_by_id = officer.user_id
     db.add(db_round)
     await db.flush()
 
@@ -121,6 +124,10 @@ async def update_round(
     for field, value in round_in.model_dump(exclude_unset=True).items():
         setattr(db_round, field, value)
     db_round.updated_by_id = officer.user_id
+    # FIX 1: Set evaluated_by_id if ANY evaluation field being updated
+    dump_data = round_in.model_dump(exclude_unset=True)
+    if 'score' in dump_data or 'recommendation' in dump_data or 'feedback' in dump_data:
+        db_round.evaluated_by_id = officer.user_id
     await db.flush()
     
     # Always recompute application status based on latest round
