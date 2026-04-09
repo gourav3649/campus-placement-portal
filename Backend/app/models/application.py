@@ -7,36 +7,35 @@ import enum
 
 class ApplicationStatus(str, enum.Enum):
     """
-    Application status enumeration.
+    PHASE 2: Standardized Application Status Flow
     
-    Workflow with eligibility:
-    1. Student applies → PENDING
-    2. System checks eligibility:
-       - Eligible → PENDING (wait for AI ranking)
-       - Not eligible → REJECTED (eligibility_failed)
-    3. Recruiter/AI reviews → REVIEWING
-    4. Final decision → SHORTLISTED/REJECTED/ACCEPTED
+    Clean lifecycle:
+    APPLIED → IN_PROGRESS → ACCEPTED/REJECTED
+    APPLIED → REJECTED (early rejection)
+    Any → WITHDRAWN (student withdrawal)
+    
+    Final states (ACCEPTED, REJECTED) are immutable.
     """
-    PENDING = "pending"
-    ELIGIBILITY_FAILED = "eligibility_failed"  # NEW: Failed eligibility check
-    REVIEWING = "reviewing"
-    SHORTLISTED = "shortlisted"
-    REJECTED = "rejected"
-    ACCEPTED = "accepted"
-    WITHDRAWN = "withdrawn"
+    APPLIED = "applied"        # Initial submission
+    IN_PROGRESS = "in_progress"  # Undergoing evaluation rounds
+    REJECTED = "rejected"      # Final: rejected (immutable)
+    ACCEPTED = "accepted"      # Final: accepted (immutable)
+    WITHDRAWN = "withdrawn"    # Student withdrawal (immutable)
 
 
 class Application(Base):
     """
-    Job application model - Eligibility-aware.
+    PHASE 2: Job application model with standardized workflow.
     
-    Eligibility Workflow:
-    1. Application created → is_eligible = None (not yet checked)
-    2. Eligibility check runs → is_eligible = True/False
-    3. If False → status = ELIGIBILITY_FAILED, NOT sent to AI
-    4. If True → status = PENDING, sent to AI ranking
+    Lifecycle:
+    APPLIED → IN_PROGRESS (first round added)
+    IN_PROGRESS → ACCEPTED/REJECTED (final decision via last round result)
+    Any state → WITHDRAWN (student withdrawal)
     
-    This ensures AI only processes qualified candidates.
+    Final states (ACCEPTED, REJECTED, WITHDRAWN) are immutable.
+    
+    Each application can have multiple rounds.
+    Only the latest round determines progression.
     """
     __tablename__ = "applications"
     
@@ -50,7 +49,7 @@ class Application(Base):
     resume_id = Column(Integer, ForeignKey("resumes.id"))
     
     # Application Details
-    status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.PENDING, nullable=False)
+    status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.APPLIED, nullable=False)
     cover_letter = Column(Text)
     
     # Eligibility Tracking (NEW)
@@ -83,6 +82,7 @@ class Application(Base):
     student = relationship("Student", back_populates="applications")
     job = relationship("Job", back_populates="applications")
     resume = relationship("Resume")
+    rounds = relationship("ApplicationRound", back_populates="application", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Application {self.id}: Student {self.student_id} -> Job {self.job_id}>"

@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum as SQLEnum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -14,6 +14,11 @@ class RoundResult(str, enum.Enum):
 
 class ApplicationRound(Base):
     __tablename__ = "application_rounds"
+    
+    # FIX 3: Enforce unique round_number per application
+    __table_args__ = (
+        UniqueConstraint('application_id', 'round_number', name='uq_app_round_number'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     application_id = Column(Integer, ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True)
