@@ -238,8 +238,9 @@ async def approve_job(
 
     job.status = DriveStatus.APPROVED
     await db.flush()
+    await db.commit()
 
-    # Notify all students in this college
+    # PHASE 4: Notify all students in this college (after commit)
     from app.models.student import Student
     from app.models.user import User
     students_result = await db.execute(
@@ -248,14 +249,14 @@ async def approve_job(
     students = students_result.scalars().all()
     for student in students:
         await create_notification(
-            db,
+            db=db,
             user_id=student.user_id,
             title=f"New Drive: {job.title}",
             message=f"{recruiter.company_name} is hiring! Apply before {job.deadline.strftime('%d %b %Y') if job.deadline else 'the deadline'}.",
             notification_type=NotificationType.DRIVE_OPENED,
             related_job_id=job.id,
         )
-
+    
     await db.commit()
     await db.refresh(job)
     

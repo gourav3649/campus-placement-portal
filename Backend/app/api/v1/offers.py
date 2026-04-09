@@ -43,20 +43,21 @@ async def create_offer(
         status=OfferStatus.EXTENDED,
     )
     db.add(offer)
+    await db.commit()
 
-    # Notify student of offer
+    # PHASE 4: Notify student of offer (after commit)
     student_result = await db.execute(select(Student).filter(Student.id == application.student_id))
     student = student_result.scalar_one_or_none()
     if student:
         await create_notification(
-            db,
+            db=db,
             user_id=student.user_id,
             title="You received an offer! 🎉",
             message=f"Congratulations! You've received an offer{f' of {offer_in.ctc} LPA' if offer_in.ctc else ''}. Please accept or decline from your Applications page.",
             notification_type=NotificationType.OFFER_EXTENDED,
             related_application_id=offer_in.application_id,
         )
-
+    
     await db.commit()
     await db.refresh(offer)
     return offer
@@ -181,22 +182,28 @@ async def respond_to_offer(
             
             for other_offer in other_offers:
                 other_offer.status = OfferStatus.REVOKED
-            
-            # Create notification for student accepting offer
-            from app.models.notification import NotificationType
+        else:
+            # Student is declining this offer
+            offer.status = OfferStatus.DECLINED
+        
+        # Commit all changes atomically
+        await db.commit()
+        
+        # PHASE 4: Create notifications AFTER commit
+        if response.accept:
             await create_notification(
-                db,
+                db=db,
                 user_id=student.user_id,
                 title="Offer Accepted ✓",
-                message=f"Congratulations! You have accepted the offer for {offer.ctc} LPA. Other offers have been revoked.",
-                notification_type=NotificationType.OFFER_EXTENDED,
+                message=f"Congratulations! You have accepted the offer. Other offers have been automatically revoked.",
+                notification_type=NotificationType.OFFER_ACCEPTED,
                 related_application_id=offer.application_id,
             )
             
-            # Create notifications for other offers being revoked
+            # Notify for other offers being revoked
             for other_offer in other_offers:
                 await create_notification(
-                    db,
+                    db=db,
                     user_id=student.user_id,
                     title="Other Offer Revoked",
                     message="Since you accepted an offer from another company, this offer has been automatically revoked.",
@@ -204,13 +211,8 @@ async def respond_to_offer(
                     related_application_id=other_offer.application_id,
                 )
         else:
-            # Student is declining this offer
-            offer.status = OfferStatus.DECLINED
-            
-            # Create notification
-            from app.models.notification import NotificationType
             await create_notification(
-                db,
+                db=db,
                 user_id=student.user_id,
                 title="Offer Declined",
                 message="You have declined the offer. You can continue exploring other opportunities.",
@@ -218,7 +220,7 @@ async def respond_to_offer(
                 related_application_id=offer.application_id,
             )
         
-        # Commit all changes atomically
+        # Commit all notifications together
         await db.commit()
         await db.refresh(offer)
         

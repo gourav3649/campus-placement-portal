@@ -64,21 +64,23 @@ async def add_round(
         application.status = ApplicationStatus.REJECTED
     # If PASSED, keep IN_PROGRESS (do NOT auto accept)
 
-    # Notify student if result is not PENDING
+    await db.commit()
+    
+    # PHASE 4: Notify student if result is not PENDING (after commit)
     if round_in.result in (RoundResult.PASSED, RoundResult.FAILED):
         student_result = await db.execute(select(Student).filter(Student.id == application.student_id))
         student = student_result.scalar_one_or_none()
         if student:
-            notif_type = NotificationType.SHORTLISTED if round_in.result == RoundResult.PASSED else NotificationType.ROUND_RESULT
+            notif_type = NotificationType.ROUND_RESULT
             await create_notification(
-                db,
+                db=db,
                 user_id=student.user_id,
                 title=f"Round Update: {round_in.round_name}",
                 message=f"Your result for '{round_in.round_name}': {round_in.result.value}",
                 notification_type=notif_type,
                 related_application_id=app_id,
             )
-
+    
     await db.commit()
     await db.refresh(db_round)
     return db_round
@@ -146,7 +148,9 @@ async def update_round(
             # Other results → IN_PROGRESS
             application.status = ApplicationStatus.IN_PROGRESS
 
-    # Notify if result changed to PASSED or FAILED
+    await db.commit()
+    
+    # PHASE 4: Notify if result changed (after commit)
     if round_in.result and round_in.result != old_result and round_in.result in (RoundResult.PASSED, RoundResult.FAILED):
         app_result = await db.execute(select(Application).filter(Application.id == db_round.application_id))
         application = app_result.scalar_one_or_none()
@@ -154,17 +158,16 @@ async def update_round(
             student_result = await db.execute(select(Student).filter(Student.id == application.student_id))
             student = student_result.scalar_one_or_none()
             if student:
-                notif_type = NotificationType.SHORTLISTED if round_in.result == RoundResult.PASSED else NotificationType.ROUND_RESULT
+                notif_type = NotificationType.ROUND_RESULT
                 await create_notification(
-                    db,
+                    db=db,
                     user_id=student.user_id,
                     title=f"Round Update: {db_round.round_name}",
                     message=f"Your result for '{db_round.round_name}': {round_in.result.value}",
                     notification_type=notif_type,
                     related_application_id=db_round.application_id,
                 )
-
-    await db.commit()
+                await db.commit()
     await db.refresh(db_round)
     return db_round
 

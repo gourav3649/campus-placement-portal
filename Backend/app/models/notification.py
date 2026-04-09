@@ -6,11 +6,13 @@ from app.database import Base
 
 
 class NotificationType(str, enum.Enum):
-    DRIVE_OPENED = "DRIVE_OPENED"
-    ROUND_RESULT = "ROUND_RESULT"
-    SHORTLISTED = "SHORTLISTED"
-    OFFER_EXTENDED = "OFFER_EXTENDED"
-    GENERAL = "GENERAL"
+    """PHASE 4: Notification types for key events."""
+    APPLICATION_SUBMITTED = "application_submitted"
+    STATUS_UPDATED = "status_updated"
+    ROUND_ADDED = "round_added"
+    ROUND_RESULT = "round_result"
+    OFFER_EXTENDED = "offer_extended"
+    OFFER_ACCEPTED = "offer_accepted"
 
 
 class Notification(Base):
@@ -23,7 +25,7 @@ class Notification(Base):
 
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    notification_type = Column(SQLEnum(NotificationType), nullable=False, default=NotificationType.GENERAL)
+    notification_type = Column(SQLEnum(NotificationType), nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
