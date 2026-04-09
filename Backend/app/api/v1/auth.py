@@ -12,7 +12,7 @@ from app.models.student import Student
 from app.models.recruiter import Recruiter
 from app.models.placement_officer import PlacementOfficer
 from app.models.college import College
-from app.schemas.user import UserCreate, Token
+from app.schemas.user import UserCreate, Token, UserToken
 from app.schemas.student import StudentCreate, StudentBase
 from app.schemas.recruiter import RecruiterCreate, RecruiterBase
 from app.schemas.placement_officer import PlacementOfficerCreate, PlacementOfficerBase
@@ -71,7 +71,7 @@ async def login_json(
         "token_type": "bearer"
     }
 
-@router.post("/register/student", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post("/register/student", response_model=UserToken, status_code=status.HTTP_201_CREATED)
 async def register_student(
     user_data: UserCreate,
     student_data: StudentBase,
@@ -117,15 +117,17 @@ async def register_student(
     
     # Auto-login
     access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
-    refresh_token = create_refresh_token({"sub": db_user.email, "role": db_user.role.value})
     
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": db_user.id,
+            "role": db_user.role
+        }
     }
 
-@router.post("/register/recruiter", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post("/register/recruiter", response_model=UserToken, status_code=status.HTTP_201_CREATED)
 async def register_recruiter(
     user_data: UserCreate,
     recruiter_data: RecruiterBase,
@@ -156,15 +158,17 @@ async def register_recruiter(
     await db.commit()
     
     access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
-    refresh_token = create_refresh_token({"sub": db_user.email, "role": db_user.role.value})
     
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": db_user.id,
+            "role": db_user.role
+        }
     }
 
-@router.post("/register/placement_officer", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post("/register/placement_officer", response_model=UserToken, status_code=status.HTTP_201_CREATED)
 async def register_placement_officer(
     user_data: UserCreate,
     officer_data: PlacementOfficerBase,
@@ -197,10 +201,12 @@ async def register_placement_officer(
     await db.commit()
     
     access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
-    refresh_token = create_refresh_token({"sub": db_user.email, "role": db_user.role.value})
     
     return {
         "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+            "id": db_user.id,
+            "role": db_user.role
+        }
     }

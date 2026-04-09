@@ -24,6 +24,15 @@ class Token(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
 
+class UserIdentity(BaseModel):
+    id: int
+    role: Role
+
+class UserToken(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserIdentity
+
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
     role: Optional[Role] = None
