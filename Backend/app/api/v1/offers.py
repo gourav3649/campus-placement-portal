@@ -91,6 +91,10 @@ async def respond_to_offer(
     - All changes atomic (transaction-safe)
     """
     try:
+        # FIX 2: Load policy BEFORE acquiring locks
+        from app.services.policy_service import get_active_policy, is_dream_job
+        policy = await get_active_policy(db)
+        
         # FIX 1 - Lock student first
         await db.execute(
             select(Student).filter(Student.id == student.id).with_for_update()
@@ -107,18 +111,38 @@ async def respond_to_offer(
             raise HTTPException(status_code=400, detail="Offer has already been responded to")
 
         if response.accept:
-            # FIX 2 - Step 2: Prevent multiple accepted offers
-            existing_accepted = await db.execute(
+            
+            # FIX 3: Count ALL accepted offers and check max_offers_per_student
+            accepted_offers_result = await db.execute(
                 select(Offer).filter(
                     Offer.student_id == offer.student_id,
                     Offer.status == OfferStatus.ACCEPTED
                 )
             )
-            if existing_accepted.scalar_one_or_none():
+            accepted_offers = accepted_offers_result.scalars().all()
+            accepted_count = len(accepted_offers)
+            
+            # Enforce max offers policy
+            if accepted_count >= policy.max_offers_per_student:
                 raise HTTPException(
                     status_code=400,
-                    detail="You have already accepted an offer"
+                    detail=f"You cannot accept more than {policy.max_offers_per_student} offer(s)"
                 )
+            
+            # FIX 4: Check if ANY accepted offer is dream
+            if accepted_offers:
+                is_current_dream = is_dream_job(offer.ctc, policy.dream_company_ctc_threshold)
+                existing_has_dream = any(
+                    is_dream_job(o.ctc, policy.dream_company_ctc_threshold)
+                    for o in accepted_offers
+                )
+                
+                # If existing has dream and current is not, block
+                if existing_has_dream and not is_current_dream:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="You have already accepted a dream company offer. Cannot accept non-dream offer."
+                    )
             
             # FIX 2 - Step 3: Correct acceptance flow
             offer.status = OfferStatus.ACCEPTED

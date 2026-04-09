@@ -14,7 +14,7 @@ from fastapi import HTTPException, status
 
 from app.models.student import Student
 from app.models.application import Application
-from app.models.job import Job
+from app.models.job import Job, JobStatus, DriveStatus
 
 
 async def validate_application_allowed(
@@ -31,16 +31,32 @@ async def validate_application_allowed(
     }
     
     Checks:
-    1. Student is not placed
+    1. Student is not placed (unless policy allows multiple offers)
     2. Student has not already applied to this job
     3. Job exists and is accepting applications
+    4. Job is OPEN and drive is APPROVED
+    5. PHASE 1: Check policy for placement restrictions
     """
     
-    # CHECK 1: Student is not placed
-    if student.is_placed:
+    # CHECK 1: Student placement status + policy
+    from app.services.policy_service import get_active_policy
+    from app.models.offer import Offer, OfferStatus
+    policy = await get_active_policy(db)
+    
+    # FIX 5: Count accepted offers and enforce max_offers_per_student
+    accepted_offers_result = await db.execute(
+        select(Offer).filter(
+            Offer.student_id == student.id,
+            Offer.status == OfferStatus.ACCEPTED
+        )
+    )
+    accepted_count = len(accepted_offers_result.scalars().all())
+    
+    # FIX 2: Single source of truth: max_offers_per_student from policy
+    if accepted_count >= policy.max_offers_per_student:
         return {
             'allowed': False,
-            'reason': 'You are already placed and cannot apply to new jobs'
+            'reason': f'You have reached maximum accepted offers ({policy.max_offers_per_student})'
         }
     
     # CHECK 2: Student has not already applied to this job
@@ -68,7 +84,6 @@ async def validate_application_allowed(
         }
     
     # CHECK 4: Job must be OPEN
-    from app.models.job import JobStatus
     if job.status != JobStatus.OPEN:
         return {
             'allowed': False,
@@ -76,7 +91,6 @@ async def validate_application_allowed(
         }
     
     # CHECK 5: Drive must be APPROVED (if exists)
-    from app.models.job import DriveStatus
     if hasattr(job, 'drive_status') and job.drive_status != DriveStatus.APPROVED:
         return {
             'allowed': False,
