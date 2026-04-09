@@ -8,7 +8,7 @@ from app.core.config import get_settings
 from app.database import engine
 from app.api.v1 import (
     auth, students, recruiters, placement_officers, colleges,
-    jobs, applications, rounds, offers, notifications,
+    jobs, applications, rounds, offers, notifications, analytics,
 )
 
 settings = get_settings()
@@ -52,6 +52,9 @@ def create_app() -> FastAPI:
     app.include_router(rounds.router,         prefix="/api/v1",              tags=["Rounds"])
     app.include_router(offers.router,         prefix="/api/v1/offers",       tags=["Offers"])
     app.include_router(notifications.router,  prefix="/api/v1/notifications",tags=["Notifications"])
+    
+    # Phase 5 — Analytics
+    app.include_router(analytics.router,      prefix="/api/v1/analytics",    tags=["Analytics"])
 
     @app.get("/health")
     async def health_check():

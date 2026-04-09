@@ -83,6 +83,7 @@ class Application(Base):
     job = relationship("Job", back_populates="applications")
     resume = relationship("Resume")
     rounds = relationship("ApplicationRound", back_populates="application", cascade="all, delete-orphan")
+    offer = relationship("Offer", back_populates="application", uselist=False, cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Application {self.id}: Student {self.student_id} -> Job {self.job_id}>"

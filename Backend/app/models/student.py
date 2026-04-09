@@ -24,3 +24,4 @@ class Student(Base):
     user = relationship("User", back_populates="student_profile")
     college = relationship("College", back_populates="students")
     resumes = relationship("Resume", back_populates="student", cascade="all, delete-orphan")
+    applications = relationship("Application", back_populates="student", cascade="all, delete-orphan")
