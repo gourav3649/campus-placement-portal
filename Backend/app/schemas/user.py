@@ -27,6 +27,7 @@ class Token(BaseModel):
 class UserIdentity(BaseModel):
     id: int
     role: Role
+    profile_id: Optional[int] = None
 
 class UserToken(BaseModel):
     access_token: str

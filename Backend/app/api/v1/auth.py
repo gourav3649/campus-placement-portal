@@ -123,7 +123,8 @@ async def register_student(
         "token_type": "bearer",
         "user": {
             "id": db_user.id,
-            "role": db_user.role
+            "role": db_user.role,
+            "profile_id": db_student.id
         }
     }
 
@@ -164,7 +165,8 @@ async def register_recruiter(
         "token_type": "bearer",
         "user": {
             "id": db_user.id,
-            "role": db_user.role
+            "role": db_user.role,
+            "profile_id": db_recruiter.id
         }
     }
 
@@ -207,6 +209,7 @@ async def register_placement_officer(
         "token_type": "bearer",
         "user": {
             "id": db_user.id,
-            "role": db_user.role
+            "role": db_user.role,
+            "profile_id": db_officer.id
         }
     }

@@ -17,8 +17,6 @@ class JobBase(BaseModel):
     salary_max: Optional[float] = None
     positions_available: Optional[int] = None
     deadline: Optional[datetime] = None
-    drive_date: Optional[datetime] = None
-    reporting_time: Optional[str] = None
     min_cgpa: Optional[float] = None
     allowed_branches: Optional[List[str]] = None
     max_backlogs: Optional[int] = None
@@ -42,8 +40,6 @@ class JobUpdate(BaseModel):
     salary_max: Optional[float] = None
     positions_available: Optional[int] = None
     deadline: Optional[datetime] = None
-    drive_date: Optional[datetime] = None
-    reporting_time: Optional[str] = None
     min_cgpa: Optional[float] = None
     allowed_branches: Optional[List[str]] = None
     max_backlogs: Optional[int] = None
