@@ -163,3 +163,44 @@ async def register_recruiter(
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+@router.post("/register/placement_officer", response_model=Token, status_code=status.HTTP_201_CREATED)
+async def register_placement_officer(
+    user_data: UserCreate,
+    officer_data: PlacementOfficerBase,
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Create new placement officer user."""
+    user_data.role = Role.PLACEMENT_OFFICER
+    
+    result = await db.execute(select(User).filter(User.email == user_data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already registered")
+        
+    db_user = User(
+        email=user_data.email,
+        hashed_password=hash_password(user_data.password),
+        role=user_data.role,
+    )
+    db.add(db_user)
+    await db.flush()
+    
+    db_officer = PlacementOfficer(
+        user_id=db_user.id,
+        name=officer_data.name,
+        email=officer_data.email,
+        designation=officer_data.designation,
+        department=officer_data.department,
+        college_id=officer_data.college_id
+    )
+    db.add(db_officer)
+    await db.commit()
+    
+    access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
+    refresh_token = create_refresh_token({"sub": db_user.email, "role": db_user.role.value})
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }

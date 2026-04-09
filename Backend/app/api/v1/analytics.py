@@ -14,7 +14,7 @@ from app.schemas.analytics import CandidateInsight, TopCandidate, DriveSummary
 from app.api.deps import get_current_student, get_current_recruiter, get_current_placement_officer
 from app.services.analytics_service import get_candidate_aggregations, get_drive_summary
 
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+router = APIRouter(tags=["Analytics"])
 
 
 @router.get("/jobs/{job_id}/top-candidates", response_model=List[TopCandidate])
