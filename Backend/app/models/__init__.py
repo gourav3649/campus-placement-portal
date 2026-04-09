@@ -10,3 +10,4 @@ from app.models.application import Application
 from app.models.application_round import ApplicationRound
 from app.models.offer import Offer
 from app.models.notification import Notification
+from app.models.policy import PlacementPolicy
