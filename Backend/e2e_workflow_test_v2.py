@@ -18,7 +18,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any
 
-BASE_URL = "http://localhost:8000/api/v1"
+BASE_URL = "http://localhost:8001/api/v1"
 
 # Test data containers
 test_data = {
@@ -516,59 +516,72 @@ async def step_8_test_analytics():
         success = True
         headers = {"Authorization": f"Bearer {test_data['recruiter_token']}"}
         
-        # Endpoint 1: Top candidates
-        print_info("Testing: GET /analytics/top-candidates")
-        response = await client.get(
-            f"{BASE_URL}/analytics/top-candidates?job_id={test_data['job_id']}",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print_success(f"✓ Top candidates endpoint works")
-            print_info(f"  Returned {len(data)} candidates")
-            for candidate in data:
-                print_info(f"    • Student: {candidate.get('student_id')}, Score: {candidate.get('avg_score')}, Rounds: {candidate.get('rounds_cleared')}")
+        # Endpoint 1: Top candidates for job
+        if test_data['job_id']:
+            print_info(f"Testing: GET /analytics/jobs/{test_data['job_id']}/top-candidates")
+            response = await client.get(
+                f"{BASE_URL}/analytics/jobs/{test_data['job_id']}/top-candidates",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print_success(f"✓ Top candidates endpoint works")
+                print_info(f"  Returned {len(data)} candidates")
+                for candidate in data:
+                    print_info(f"    • Student: {candidate.get('student_id')}, Score: {candidate.get('avg_score')}, Rounds: {candidate.get('rounds_cleared')}")
+            else:
+                print_failure(f"✗ Top candidates failed: {response.status_code}")
+                print_info(f"Response: {response.text}")
+                success = False
         else:
-            print_failure(f"✗ Top candidates failed: {response.status_code}")
-            print_info(f"Response: {response.text}")
+            print_failure("❌ No Job ID - Skipping top candidates test")
             success = False
         
-        # Endpoint 2: Student insight
-        print_info("Testing: GET /analytics/insight")
-        response = await client.get(
-            f"{BASE_URL}/analytics/insight?student_id={test_data['student2_id']}",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print_success(f"✓ Student insight endpoint works")
-            print_info(f"  Performance Label: {data.get('performance_label')}")
-            print_info(f"  Avg Score: {data.get('avg_score')}")
-            print_info(f"  Rounds Cleared: {data.get('rounds_cleared')}")
+        # Endpoint 2: Student insight for application
+        if test_data['application2_id']:
+            print_info(f"Testing: GET /analytics/applications/{test_data['application2_id']}/insight")
+            headers_student = {"Authorization": f"Bearer {test_data['student2_token']}"}
+            response = await client.get(
+                f"{BASE_URL}/analytics/applications/{test_data['application2_id']}/insight",
+                headers=headers_student
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print_success(f"✓ Student insight endpoint works")
+                print_info(f"  Performance Label: {data.get('performance_label')}")
+                print_info(f"  Avg Score: {data.get('avg_score')}")
+                print_info(f"  Rounds Cleared: {data.get('rounds_cleared')}")
+            else:
+                print_failure(f"✗ Student insight failed: {response.status_code}")
+                print_info(f"Response: {response.text}")
+                success = False
         else:
-            print_failure(f"✗ Student insight failed: {response.status_code}")
-            print_info(f"Response: {response.text}")
+            print_failure("❌ No Application ID - Skipping student insight test")
             success = False
         
-        # Endpoint 3: Drive summary
-        print_info("Testing: GET /analytics/drive-summary")
-        response = await client.get(
-            f"{BASE_URL}/analytics/drive-summary?job_id={test_data['job_id']}",
-            headers=headers
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print_success(f"✓ Drive summary endpoint works")
-            print_info(f"  Total Applicants: {data.get('total_applicants')}")
-            print_info(f"  In Progress: {data.get('in_progress')}")
-            print_info(f"  Accepted: {data.get('accepted')}")
-            print_info(f"  Rejected: {data.get('rejected')}")
+        # Endpoint 3: Drive summary for job
+        if test_data['job_id']:
+            print_info(f"Testing: GET /analytics/jobs/{test_data['job_id']}/summary")
+            response = await client.get(
+                f"{BASE_URL}/analytics/jobs/{test_data['job_id']}/summary",
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print_success(f"✓ Drive summary endpoint works")
+                print_info(f"  Total Applicants: {data.get('total_applicants')}")
+                print_info(f"  In Progress: {data.get('in_progress')}")
+                print_info(f"  Accepted: {data.get('accepted')}")
+                print_info(f"  Rejected: {data.get('rejected')}")
+            else:
+                print_failure(f"✗ Drive summary failed: {response.status_code}")
+                print_info(f"Response: {response.text}")
+                success = False
         else:
-            print_failure(f"✗ Drive summary failed: {response.status_code}")
-            print_info(f"Response: {response.text}")
+            print_failure("❌ No Job ID - Skipping summary test")
             success = False
         
         return success
