@@ -103,6 +103,7 @@ class Job(Base):
     recruiter = relationship("Recruiter", back_populates="jobs")
     college = relationship("College", back_populates="jobs")  # NEW: Multi-tenant relationship
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
+    offers = relationship("Offer", back_populates="job", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Job {self.title} @ College {self.college_id}>"

@@ -48,3 +48,4 @@ class ApplicationRound(Base):
 
     # Relationships
     application = relationship("Application", back_populates="rounds")
+    evaluated_by = relationship("User", foreign_keys=[evaluated_by_id])
