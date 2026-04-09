@@ -54,6 +54,9 @@ async def test_workflow():
         print(f"\n{B}CAMPUS PLACEMENT SYSTEM - E2E WORKFLOW TEST{W}")
         print(f"{B}Started: {datetime.now().isoformat()}{W}\n")
         
+        # Use college_id=1 (assuming it exists or will be created by migrations)
+        college_id = 1
+        
         # ===== STEP 1: Register Student 1 =====
         step(1, "Register Student → Capture user.id")
         email1 = f"student1_{datetime.now().timestamp()}@test.com"
@@ -63,7 +66,7 @@ async def test_workflow():
                 "user_data": {"email": email1, "password": "Test123!", "role": "student"},
                 "student_data": {
                     "first_name": "Alice", "last_name": "Johnson",
-                    "branch": "CS", "graduation_year": 2024, "cgpa": 8.5, "college_id": 1
+                    "branch": "CS", "graduation_year": 2024, "cgpa": 8.5, "college_id": college_id
                 }
             }
         )
@@ -85,7 +88,7 @@ async def test_workflow():
                 "user_data": {"email": email_rec, "password": "Test123!", "role": "recruiter"},
                 "recruiter_data": {
                     "first_name": "Bob", "last_name": "Smith",
-                    "company_name": "TechCorp Inc", "email": email_rec, "college_id": 1
+                    "company_name": "TechCorp Inc", "email": email_rec, "college_id": college_id
                 }
             }
         )
@@ -106,7 +109,7 @@ async def test_workflow():
             json={
                 "user_data": {"email": email_off, "password": "Test123!", "role": "placement_officer"},
                 "officer_data": {
-                    "name": "Charlie", "email": email_off, "college_id": 1,
+                    "name": "Charlie", "email": email_off, "college_id": college_id,
                     "designation": "Placement Lead", "department": "Placement"
                 }
             }
@@ -141,7 +144,7 @@ async def test_workflow():
                 "title": "Senior SDE",
                 "description": "Software Engineer role",
                 "recruiter_id": data["recruiter_id"],
-                "college_id": 1,
+                "college_id": college_id,
                 "salary_min": 800000,
                 "salary_max": 900000,
                 "allowed_branches": ["CS", "IT"],
@@ -153,7 +156,12 @@ async def test_workflow():
             data["job_id"] = resp.json()["id"]
             success(f"Job created: ID={data['job_id']}")
         else:
-            failure(f"Failed: {resp.status_code} - {resp.text}")
+            # Print full error details
+            try:
+                error_detail = resp.json()
+                failure(f"Failed: {resp.status_code} - {error_detail}")
+            except:
+                failure(f"Failed: {resp.status_code} - {resp.text}")
             info("Note: Job creation requires recruiter to be verified first")
             # Continue to try approval instead
         
@@ -247,7 +255,7 @@ async def test_workflow():
                 "user_data": {"email": email2, "password": "Test123!", "role": "student"},
                 "student_data": {
                     "first_name": "Diana", "last_name": "Lee",
-                    "branch": "IT", "graduation_year": 2024, "cgpa": 9.0, "college_id": 1
+                    "branch": "IT", "graduation_year": 2024, "cgpa": 9.0, "college_id": college_id
                 }
             }
         )
