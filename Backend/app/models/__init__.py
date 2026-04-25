@@ -11,3 +11,5 @@ from app.models.application_round import ApplicationRound
 from app.models.offer import Offer
 from app.models.notification import Notification
 from app.models.policy import PlacementPolicy
+from app.models.round import Round
+from app.models.evaluation import Evaluation, EvaluationStatus

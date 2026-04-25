@@ -12,8 +12,9 @@ from app.schemas.application import (
     ApplicationCreate, ApplicationUpdate, Application as ApplicationSchema,
     ApplicationWithDetails, ApplicationRanking, RankingRequest, CandidatePreview
 )
+from app.schemas.evaluation import EvaluationCreate, EvaluationResponse
 
-router = APIRouter(prefix="/applications", tags=["Applications"])
+router = APIRouter(tags=["Applications"])
 
 
 @router.post("", response_model=ApplicationSchema, status_code=status.HTTP_201_CREATED)
@@ -81,6 +82,78 @@ async def submit_application(
     background_tasks.add_task(update_application_scores, application.job_id)
     
     return application
+
+
+@router.post("/apply/{job_id}", response_model=ApplicationSchema, status_code=status.HTTP_201_CREATED)
+async def apply_to_job(
+    job_id: int,
+    db: AsyncSession = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    """
+    Student applies to a job.
+    
+    Validations:
+    1. Job exists
+    2. Job is APPROVED for applications
+    3. Student hasn't already applied
+    4. Student is eligible
+    5. Application policy passes
+    """
+    from sqlalchemy.exc import IntegrityError
+    
+    try:
+        # STEP 3: FETCH JOB
+        job_result = await db.execute(select(Job).where(Job.id == job_id))
+        job = job_result.scalar_one_or_none()
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # STEP 4: CHECK JOB STATUS
+        from app.models.job import DriveStatus
+        if job.drive_status != DriveStatus.APPROVED:
+            raise HTTPException(status_code=400, detail="Job not open for applications")
+        
+        # STEP 6: ELIGIBILITY CHECK
+        from app.services.eligibility import check_eligibility
+        is_eligible, ineligibility_reasons = check_eligibility(student, job)
+        
+        if not is_eligible:
+            raise HTTPException(status_code=403, detail=f"Not eligible: {'; '.join(ineligibility_reasons)}")
+        
+        # STEP 7: POLICY CHECK
+        from app.services.policy_service import validate_application_policy
+        validate_application_policy(student, job)
+        
+        # STEP 8: CREATE APPLICATION
+        application = Application(
+            student_id=student.id,
+            job_id=job_id,
+            status=ApplicationStatus.APPLIED,
+        )
+        
+        # STEP 9: SAVE
+        db.add(application)
+        
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(status_code=400, detail="Already applied")
+        
+        await db.refresh(application)
+        
+        # STEP 10: RETURN RESPONSE
+        return application
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        import logging
+        logging.error(f"Error in apply_to_job: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/{application_id}", response_model=ApplicationSchema)
@@ -470,3 +543,103 @@ async def get_top_candidates(
         )
     
     return candidates
+
+
+@router.post("/{application_id}/evaluate", status_code=status.HTTP_201_CREATED)
+async def evaluate_application(
+    application_id: int,
+    evaluation_in: "EvaluationCreate",
+    db: AsyncSession = Depends(get_db),
+    recruiter=Depends(get_current_recruiter),
+):
+    """
+    Recruiter submits evaluation for an application in a specific round.
+    Advances application state according to round result and round configuration.
+    """
+    from app.models.round import Round
+    from app.models.evaluation import Evaluation, EvaluationStatus
+    from sqlalchemy.exc import IntegrityError
+
+    # Step 1: Fetch application
+    app_result = await db.execute(
+        select(Application).where(Application.id == application_id)
+    )
+    application = app_result.scalar_one_or_none()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Verify recruiter owns the job this application belongs to
+    job = await db.get(Job, application.job_id)
+    if not job or job.recruiter_id != recruiter.id:
+        raise HTTPException(status_code=403, detail="Not authorized to evaluate this application")
+
+    # Step 2: Block if application is in a final state
+    if application.status in (ApplicationStatus.REJECTED, ApplicationStatus.ACCEPTED):
+        raise HTTPException(status_code=400, detail="Cannot evaluate completed application")
+
+    # Step 3: Fetch round and verify it belongs to the same job
+    round_result = await db.execute(
+        select(Round).where(Round.id == evaluation_in.round_id)
+    )
+    round_ = round_result.scalar_one_or_none()
+    if not round_:
+        raise HTTPException(status_code=404, detail="Round not found")
+    if round_.job_id != application.job_id:
+        raise HTTPException(status_code=400, detail="Round does not belong to this job")
+
+    # Step 4: Enforce sequential evaluation order
+    expected_round = application.current_round + 1
+    if round_.round_number != expected_round:
+        raise HTTPException(status_code=400, detail="Invalid round sequence")
+
+    # Step 5: Prevent duplicate evaluation for same application+round
+    dup_result = await db.execute(
+        select(Evaluation.id).where(
+            Evaluation.application_id == application_id,
+            Evaluation.round_id == evaluation_in.round_id,
+        ).limit(1)
+    )
+    if dup_result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Round already evaluated")
+
+    # Step 6: Create evaluation
+    evaluation = Evaluation(
+        application_id=application_id,
+        round_id=evaluation_in.round_id,
+        status=evaluation_in.status,
+        score=evaluation_in.score,
+        feedback=evaluation_in.feedback,
+        evaluated_by=recruiter.id,
+    )
+    db.add(evaluation)
+
+    # Step 7: Update application status based on result
+    max_round = await db.scalar(
+        select(func.max(Round.round_number)).where(Round.job_id == application.job_id)
+    )
+    if not max_round:
+        raise HTTPException(status_code=400, detail="No rounds defined for this job")
+
+    if evaluation_in.status == EvaluationStatus.FAILED and round_.is_eliminatory:
+        application.status = ApplicationStatus.REJECTED
+    elif round_.round_number == max_round and evaluation_in.status == EvaluationStatus.PASSED:
+        application.status = ApplicationStatus.ACCEPTED
+    else:
+        application.status = ApplicationStatus.IN_PROGRESS
+
+    # Step 8: Advance current_round tracker
+    application.current_round = round_.round_number
+    db.add(application)
+
+    # Step 9: Save with transaction safety
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Evaluation already exists")
+
+    await db.refresh(evaluation)
+
+    # Step 10: Return
+    return EvaluationResponse.model_validate(evaluation)
+

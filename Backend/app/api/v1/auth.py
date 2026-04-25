@@ -38,8 +38,8 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    access_token = create_access_token({"sub": user.email, "role": user.role.value})
-    refresh_token = create_refresh_token({"sub": user.email, "role": user.role.value})
+    access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
+    refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.value})
     
     return {
         "access_token": access_token,
@@ -62,8 +62,8 @@ async def login_json(
             detail="Incorrect email or password",
         )
         
-    access_token = create_access_token({"sub": user.email, "role": user.role.value})
-    refresh_token = create_refresh_token({"sub": user.email, "role": user.role.value})
+    access_token = create_access_token({"sub": str(user.id), "role": user.role.value})
+    refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.value})
     
     return {
         "access_token": access_token,
@@ -116,7 +116,7 @@ async def register_student(
     await db.commit()
     
     # Auto-login
-    access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
+    access_token = create_access_token({"sub": str(db_user.id), "role": db_user.role.value})
     
     return {
         "access_token": access_token,
@@ -158,7 +158,7 @@ async def register_recruiter(
     db.add(db_recruiter)
     await db.commit()
     
-    access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
+    access_token = create_access_token({"sub": str(db_user.id), "role": db_user.role.value})
     
     return {
         "access_token": access_token,
@@ -202,7 +202,7 @@ async def register_placement_officer(
     db.add(db_officer)
     await db.commit()
     
-    access_token = create_access_token({"sub": db_user.email, "role": db_user.role.value})
+    access_token = create_access_token({"sub": str(db_user.id), "role": db_user.role.value})
     
     return {
         "access_token": access_token,

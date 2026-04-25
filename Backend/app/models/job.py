@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text, Boolean, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text, Boolean, Enum as SQLEnum, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -89,9 +89,12 @@ class Job(Base):
     
     # Eligibility Criteria (NEW: Pre-AI filtering rules)
     min_cgpa = Column(Float, nullable=True)  # e.g., 7.0 minimum
-    allowed_branches = Column(Text, nullable=True)  # JSON: ["CS", "ECE", "IT"]
+    allowed_branches = Column(ARRAY(String), nullable=True)  # PostgreSQL ARRAY: ["CS", "ECE", "IT"]
     max_backlogs = Column(Integer, nullable=True)  # e.g., 0 (no backlogs), 2 (max 2)
     exclude_placed_students = Column(Boolean, default=True, nullable=False)  # Skip already placed
+    
+    # AI Embeddings (for semantic matching)
+    embedding_vector = Column(ARRAY(Float), nullable=True)  # Vector embeddings for job matching
     
     # Metadata
     positions_available = Column(Integer, default=1)
@@ -104,6 +107,7 @@ class Job(Base):
     college = relationship("College", back_populates="jobs")  # NEW: Multi-tenant relationship
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
     offers = relationship("Offer", back_populates="job", cascade="all, delete-orphan")
+    rounds = relationship("Round", back_populates="job", cascade="all, delete-orphan", order_by="Round.round_number")
     
     def __repr__(self):
         return f"<Job {self.title} @ College {self.college_id}>"

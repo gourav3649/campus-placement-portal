@@ -64,3 +64,15 @@ def is_dream_job(ctc: float, threshold: int) -> bool:
     if ctc is None:
         return False
     return ctc >= threshold
+
+
+def validate_application_policy(student, job):
+    """
+    Validate student can apply based on placement policy.
+    
+    Raises HTTPException if student cannot apply.
+    """
+    from fastapi import HTTPException
+    
+    if student.is_placed:
+        raise HTTPException(status_code=403, detail="Cannot apply after being placed")

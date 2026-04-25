@@ -31,11 +31,16 @@ async def get_current_user(
     if payload is None:
         raise credentials_exception
         
-    username: str = payload.get("sub")
-    if username is None:
+    user_id_str: str = payload.get("sub")
+    if user_id_str is None:
+        raise credentials_exception
+    
+    try:
+        user_id = int(user_id_str)
+    except ValueError:
         raise credentials_exception
         
-    result = await db.execute(select(User).filter(User.email == username))
+    result = await db.execute(select(User).filter(User.id == user_id))
     user = result.scalar_one_or_none()
     
     if user is None:

@@ -23,6 +23,8 @@ class StudentUpdate(BaseModel):
     cgpa: Optional[float] = None
     skills: Optional[str] = None
     bio: Optional[str] = None
+    is_placed: Optional[bool] = None
+    has_backlogs: Optional[bool] = None
     
 class StudentResponse(StudentBase):
     id: int

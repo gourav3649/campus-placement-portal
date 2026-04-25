@@ -51,6 +51,7 @@ class Application(Base):
     # Application Details
     status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.APPLIED, nullable=False)
     cover_letter = Column(Text)
+    current_round = Column(Integer, default=0, nullable=False)  # 0 = no round evaluated yet
     
     # Eligibility Tracking (NEW)
     is_eligible = Column(Boolean, nullable=True)  # None = not checked, True/False = result
@@ -84,6 +85,7 @@ class Application(Base):
     resume = relationship("Resume")
     rounds = relationship("ApplicationRound", back_populates="application", cascade="all, delete-orphan")
     offer = relationship("Offer", back_populates="application", uselist=False, cascade="all, delete-orphan")
+    evaluations = relationship("Evaluation", back_populates="application", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Application {self.id}: Student {self.student_id} -> Job {self.job_id}>"

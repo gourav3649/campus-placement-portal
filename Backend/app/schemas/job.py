@@ -50,7 +50,7 @@ class JobResponse(JobBase):
     id: int
     recruiter_id: int
     college_id: int
-    status: DriveStatus
+    drive_status: DriveStatus
     created_at: datetime
     updated_at: datetime
 
